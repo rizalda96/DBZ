@@ -29,7 +29,8 @@ fn main() -> eframe::Result<()> {
     }
 
     let mut viewport = egui::ViewportBuilder::default()
-        .with_title("DB Studio")
+        .with_title("DBZ")
+        .with_icon(eframe::icon_data::from_png_bytes(icons::LOGO_PNG).expect("bundled logo is a valid PNG"))
         .with_inner_size([1366.0, 820.0])
         .with_min_inner_size([900.0, 560.0]);
     if screenshot.is_some() {
@@ -51,8 +52,8 @@ fn main() -> eframe::Result<()> {
     }
 
     eframe::run_native(
-        "DB Studio",
+        "DBZ",
         options,
-        Box::new(move |cc| Ok(Box::new(app::DbStudio::new(cc, screenshot)))),
+        Box::new(move |cc| Ok(Box::new(app::Dbz::new(cc, screenshot)))),
     )
 }

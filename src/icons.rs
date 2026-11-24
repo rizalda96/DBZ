@@ -1,4 +1,4 @@
-//! Small vector icons drawn with the painter (no image files needed).
+//! Small vector icons drawn with the painter, plus the bundled DBZ logo.
 
 use eframe::egui::{self, pos2, vec2, Color32, FontId, Painter, Pos2, Rect, Shape, Stroke, StrokeKind};
 
@@ -216,4 +216,22 @@ pub fn paint(p: &Painter, r: Rect, icon: Icon) {
             p.line_segment([pos2(k.left(), k.center().y), pos2(k.right(), k.center().y)], Stroke::new(s * 0.13, RED));
         }
     }
+}
+
+/// The DBZ logo (square app icon, transparent background).
+pub const LOGO_PNG: &[u8] = include_bytes!("../assets/logo/icon.png");
+
+/// Shows the DBZ logo at `size` points. The texture is decoded once and cached in egui memory.
+pub fn logo(ui: &mut egui::Ui, size: f32) {
+    let id = egui::Id::unique("dbz_logo");
+    let ctx = ui.ctx().clone();
+    let tex = ctx.data_mut(|d| d.get_temp::<egui::TextureHandle>(id)).unwrap_or_else(|| {
+        let img = image::load_from_memory(LOGO_PNG).expect("bundled logo is a valid PNG").to_rgba8();
+        let ci = egui::ColorImage::from_rgba_unmultiplied([img.width() as usize, img.height() as usize], img.as_raw());
+        let opts = egui::TextureOptions { mipmap_mode: Some(egui::TextureFilter::Linear), ..egui::TextureOptions::LINEAR };
+        let t = ctx.load_texture("dbz_logo", ci, opts);
+        ctx.data_mut(|d| d.insert_temp(id, t.clone()));
+        t
+    });
+    ui.add(egui::Image::new(&tex).fit_to_exact_size(vec2(size, size)));
 }

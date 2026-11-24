@@ -227,7 +227,7 @@ pub struct ConnDialog {
     pub test_id: Option<u64>,
 }
 
-pub struct DbStudio {
+pub struct Dbz {
     pub conns: Vec<ConnState>,
     pub sel: Sel,
     pub tabs: Vec<Tab>,
@@ -258,7 +258,7 @@ pub struct DbStudio {
 }
 
 fn data_dir() -> PathBuf {
-    std::env::var_os("APPDATA").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(".")).join("DBStudio")
+    std::env::var_os("APPDATA").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(".")).join("DBZ")
 }
 
 pub fn sanitize(s: &str) -> String {
@@ -298,7 +298,7 @@ fn setup_style(ctx: &egui::Context) {
     });
 }
 
-impl DbStudio {
+impl Dbz {
     pub fn new(cc: &eframe::CreationContext<'_>, screenshot: Option<String>) -> Self {
         setup_style(&cc.egui_ctx);
         let (tx, rx) = std::sync::mpsc::channel();
@@ -314,7 +314,7 @@ impl DbStudio {
         }
         let next_conn = cfgs.iter().map(|c| c.id).max().unwrap_or(0) + 1;
         let sample_id = cfgs.iter().find(|c| c.kind == DbKind::Sample).map(|c| c.id);
-        let mut app = DbStudio {
+        let mut app = Dbz {
             conns: cfgs.into_iter().map(ConnState::new).collect(),
             sel: Sel::default(),
             tabs: vec![],
@@ -1224,7 +1224,7 @@ impl DbStudio {
     }
 }
 
-impl eframe::App for DbStudio {
+impl eframe::App for Dbz {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if self.screenshot.is_some() {
             ctx.send_viewport_cmd(egui::ViewportCommand::RequestPaintWhileHidden);
@@ -1273,10 +1273,10 @@ impl eframe::App for DbStudio {
         if let Some(path) = self.screenshot.clone() {
             self.frames += 1;
             ctx.request_repaint();
-            // Test helper: DBSTUDIO_SHOT_VIEW=data|query|design opens that screen before the picture.
+            // Test helper: DBZ_SHOT_VIEW=data|query|design opens that screen before the picture.
             if self.frames == 20 {
                 let cid = self.conns.first().map(|c| c.cfg.id).unwrap_or(1);
-                match std::env::var("DBSTUDIO_SHOT_VIEW").unwrap_or_default().as_str() {
+                match std::env::var("DBZ_SHOT_VIEW").unwrap_or_default().as_str() {
                     "data" => self.do_act(Act::OpenTable(cid, "shop".into(), "customers".into(), false)),
                     "design" => self.do_act(Act::DesignTable(cid, "shop".into(), Some("orders".into()))),
                     "query" => {

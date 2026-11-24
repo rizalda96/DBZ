@@ -286,7 +286,7 @@ impl Client {
                 .password(&cfg.password)
                 .dbname(db)
                 .connect_timeout(timeout)
-                .application_name("DB Studio")
+                .application_name("DBZ")
                 .connect(postgres::NoTls)
                 .map_err(|e| pg_err(&e))?;
             clients.insert(db.to_string(), client);
@@ -672,7 +672,7 @@ fn dump(c: &mut Client, cfg: &ConnConfig, db: &str, path: &str, data: bool) -> R
     let pg = cfg.kind.is_pg();
     let tables = c.tables(cfg, db)?;
     let mut out = format!(
-        "-- DB Studio SQL dump\n-- Connection: {} ({})\n-- Database: {}\n-- Date: {}\n\n",
+        "-- DBZ SQL dump\n-- Connection: {} ({})\n-- Database: {}\n-- Date: {}\n\n",
         cfg.name,
         cfg.kind.label(),
         db,

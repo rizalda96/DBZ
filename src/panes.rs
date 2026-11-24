@@ -13,7 +13,7 @@ use crate::views::{self, *};
 
 pub const ERR: Color32 = Color32::from_rgb(0xb0, 0x20, 0x20);
 
-impl DbStudio {
+impl Dbz {
     pub fn menu_bar(&mut self, ui: &mut Ui, acts: &mut Vec<Act>) {
         egui::MenuBar::new().ui(ui, |ui| {
             ui.menu_button("File", |ui| {
@@ -136,7 +136,7 @@ impl DbStudio {
                     ));
                     ui.close();
                 }
-                if ui.button("About DB Studio").clicked() {
+                if ui.button("About DBZ").clicked() {
                     acts.push(Act::ShowAbout);
                     ui.close();
                 }
@@ -865,10 +865,9 @@ fn object_menu(ui: &mut Ui, mode: ObjMode, cid: u64, db: &str, name: &str, acts:
 fn welcome(ui: &mut Ui, acts: &mut Vec<Act>) {
     ui.add_space(60.0);
     ui.vertical_centered(|ui| {
-        let (r, _) = ui.allocate_exact_size(vec2(64.0, 64.0), Sense::hover());
-        icons::paint(ui.painter(), r, Icon::Connection);
+        icons::logo(ui, 96.0);
         ui.add_space(10.0);
-        ui.label(RichText::new("Welcome to DB Studio").size(20.0).strong());
+        ui.label(RichText::new("Welcome to DBZ").size(20.0).strong());
         ui.label(RichText::new("Select a connection on the left, or create a new one.").color(MUTED));
         ui.add_space(12.0);
         for k in [DbKind::MySql, DbKind::MariaDb, DbKind::PostgreSql] {

@@ -1,4 +1,4 @@
-# DB Studio
+# DBZ
 
 A desktop database manager written in Rust with [eframe/egui](https://github.com/emilk/egui).
 
@@ -19,9 +19,9 @@ A desktop database manager written in Rust with [eframe/egui](https://github.com
 cargo build --release
 ```
 
-Run `target/release/dbstudio` (add `--screenshot out.png` to save a picture of the window and exit).
+Run `target/release/dbz` (add `--screenshot out.png` to save a picture of the window and exit).
 
-Connections are saved in `%APPDATA%\DBStudio\connections.json` (passwords in plain text when "Save password" is ticked).
+Connections are saved in `%APPDATA%\DBZ\connections.json` (passwords in plain text when "Save password" is ticked).
 
 ### Note for the Windows GNU toolchain
 

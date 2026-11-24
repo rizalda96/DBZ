@@ -39,7 +39,7 @@ fn file_row(ui: &mut Ui, path: &mut String, hint: &str, pick: impl FnOnce() -> O
     });
 }
 
-impl DbStudio {
+impl Dbz {
     pub fn dialogs(&mut self, ctx: &egui::Context, acts: &mut Vec<Act>) {
         if let Some((title, msg)) = self.alert.clone() {
             let mut close = false;
@@ -235,12 +235,11 @@ impl DbStudio {
                 });
             }
             Dialog::About => {
-                win("About DB Studio").show(ctx, |ui| {
+                win("About DBZ").show(ctx, |ui| {
                     ui.horizontal(|ui| {
-                        let (r, _) = ui.allocate_exact_size(vec2(48.0, 48.0), Sense::hover());
-                        icons::paint(ui.painter(), r, Icon::Connection);
+                        icons::logo(ui, 56.0);
                         ui.vertical(|ui| {
-                            ui.label(RichText::new("DB Studio").strong().size(18.0));
+                            ui.label(RichText::new("DBZ").strong().size(18.0));
                             ui.label("Version 0.1 — a database manager written in Rust");
                         });
                     });
