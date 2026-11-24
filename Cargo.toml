@@ -1,0 +1,29 @@
+[package]
+name = "dbstudio"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+eframe = { version = "0.37", default-features = false, features = ["accesskit", "clipboard", "default_fonts", "glow", "persistence"] }
+egui_extras = { version = "0.37", default-features = false }
+image = { version = "0.25", default-features = false, features = ["png"] }
+mysql = { version = "28", default-features = false, features = ["minimal-rust"] }
+postgres = { version = "0.19" }
+rfd = "0.18"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+winit = "0.30"
+
+# The GNU Rust toolchain on this machine has no assembler for `dlltool`, which the
+# upstream `windows-link` needs. This local copy links against the bundled import
+# library instead. Safe to remove on machines with Visual Studio build tools.
+[patch.crates-io]
+windows-link = { path = "patches/windows-link" }
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 2

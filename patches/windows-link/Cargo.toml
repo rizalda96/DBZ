@@ -1,0 +1,18 @@
+[package]
+edition = "2021"
+name = "windows-link"
+version = "0.2.1"
+description = "Linking for Windows (local build: uses the bundled GNU import library instead of raw-dylib, so no dlltool/assembler is needed)"
+license = "MIT OR Apache-2.0"
+readme = "readme.md"
+
+[lib]
+name = "windows_link"
+path = "src/lib.rs"
+
+[target.'cfg(all(target_arch = "x86_64", target_env = "gnu", not(target_abi = "llvm")))'.dependencies]
+windows_x86_64_gnu = "0.53"
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = ["cfg(windows_raw_dylib, windows_slim_errors)"]

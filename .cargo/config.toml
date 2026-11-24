@@ -1,0 +1,5 @@
+# The GNU Rust toolchain on this machine can't build "raw-dylib" imports (no
+# assembler for dlltool). getrandom's legacy Windows backend links advapi32
+# normally instead; it is the documented, secure option for Windows.
+[target.x86_64-pc-windows-gnu]
+rustflags = ["--cfg", "getrandom_backend=\"windows_legacy\""]
