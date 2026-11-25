@@ -137,8 +137,23 @@ pub struct TriggerDef {
     /// Columns after UPDATE OF (PostgreSQL).
     pub update_of: String,
     pub enabled: bool,
-    /// The function call (PostgreSQL, e.g. "audit()") or the statement (MySQL).
+    /// The statement it runs (MySQL).
     pub body: String,
+    /// WHEN condition (PostgreSQL); empty = always.
+    pub when: String,
+    /// The trigger function it executes (PostgreSQL), and what it is passed:
+    /// literals as SQL, e.g. "'audit', 3".
+    pub function_schema: String,
+    pub function: String,
+    pub arguments: String,
+    /// CREATE CONSTRAINT TRIGGER (PostgreSQL); the rest of the constraint options
+    /// only apply then.
+    pub constraint: bool,
+    pub deferrable: bool,
+    pub deferred: bool,
+    /// The table named in FROM (often the other side of a foreign key).
+    pub ref_schema: String,
+    pub ref_table: String,
     pub comment: String,
     pub orig_name: Option<String>,
 }

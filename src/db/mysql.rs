@@ -4,7 +4,7 @@ use mysql::prelude::Queryable;
 
 use super::driver::{number, text, Driver};
 use super::{mysql_parts, DbError};
-use crate::domain::{Cell, ConnConfig, FieldDef, IndexChoices, ResultSet, RoutineInfo, Row, SchemaTable, TableInfo, TableParts};
+use crate::domain::{Cell, ConnConfig, FieldDef, IndexChoices, ResultSet, RoutineInfo, Row, SchemaName, TableInfo, TableParts};
 use crate::sql::{Dialect, MySqlDialect};
 
 static DIALECT: MySqlDialect = MySqlDialect;
@@ -100,7 +100,7 @@ impl Driver for MySqlDriver {
     /// Only the tables a foreign key can reference; MySQL index columns have no
     /// collations or operator classes to offer.
     fn index_choices(&mut self, db: &str) -> Result<IndexChoices, DbError> {
-        let tables = self.rows(db, REF_TABLES_SQL)?.iter().map(|r| SchemaTable { schema: text(&r[0]), name: text(&r[1]) }).collect();
+        let tables = self.rows(db, REF_TABLES_SQL)?.iter().map(|r| SchemaName { schema: text(&r[0]), name: text(&r[1]) }).collect();
         Ok(IndexChoices { tables, ..Default::default() })
     }
 

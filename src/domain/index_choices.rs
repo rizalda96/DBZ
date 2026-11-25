@@ -29,11 +29,14 @@ pub struct IndexChoices {
     /// Tablespaces an index can be put in.
     pub tablespaces: Vec<String>,
     /// Tables a foreign key can reference, by schema (PostgreSQL) or database (MySQL).
-    pub tables: Vec<SchemaTable>,
+    pub tables: Vec<SchemaName>,
+    /// Functions a trigger can execute (PostgreSQL: those returning `trigger`).
+    pub trigger_functions: Vec<SchemaName>,
 }
 
+/// A table, function, … and the schema (or database) it lives in.
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct SchemaTable {
+pub struct SchemaName {
     pub schema: String,
     pub name: String,
 }
@@ -47,6 +50,16 @@ impl IndexChoices {
     /// Tables in `schema`; every schema's when it is empty.
     pub fn tables_in(&self, schema: &str) -> Vec<String> {
         names(self.tables.iter().filter(|t| in_schema(&t.schema, schema)).map(|t| &t.name))
+    }
+
+    /// Schemas that have a trigger function.
+    pub fn function_schemas(&self) -> Vec<String> {
+        names(self.trigger_functions.iter().map(|f| &f.schema))
+    }
+
+    /// Trigger functions in `schema`; every schema's when it is empty.
+    pub fn functions_in(&self, schema: &str) -> Vec<String> {
+        names(self.trigger_functions.iter().filter(|f| in_schema(&f.schema, schema)).map(|f| &f.name))
     }
 
     /// Collation names in `schema`; every schema's when it is empty.
@@ -79,7 +92,7 @@ fn names<'a>(it: impl Iterator<Item = &'a String>) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Collation, IndexChoices, OpClass, SchemaTable};
+    use super::{Collation, IndexChoices, OpClass, SchemaName};
 
     fn choices() -> IndexChoices {
         let op = |schema: &str, name: &str, method: &str| OpClass { schema: schema.into(), name: name.into(), method: method.into() };
@@ -90,11 +103,19 @@ mod tests {
             operators: vec![],
             tablespaces: vec![],
             tables: vec![table("public", "master_site"), table("public", "master_transporter"), table("audit", "log")],
+            trigger_functions: vec![table("public", "insert_data_pooling"), table("audit", "log_change"), table("public", "touch")],
         }
     }
 
-    fn table(schema: &str, name: &str) -> SchemaTable {
-        SchemaTable { schema: schema.into(), name: name.into() }
+    #[test]
+    fn trigger_functions_follow_the_schema() {
+        let c = choices();
+        assert_eq!(c.function_schemas(), ["audit", "public"]);
+        assert_eq!(c.functions_in("public"), ["insert_data_pooling", "touch"]);
+    }
+
+    fn table(schema: &str, name: &str) -> SchemaName {
+        SchemaName { schema: schema.into(), name: name.into() }
     }
 
     #[test]

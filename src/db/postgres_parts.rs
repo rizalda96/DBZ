@@ -2,7 +2,7 @@
 
 use super::driver::{number, text, Driver};
 use super::DbError;
-use crate::domain::{CheckDef, Collation, ExcludeDef, ForeignKeyDef, IndexChoices, IndexDef, OpClass, Row, RuleDef, SchemaTable, TableOptions, TableParts, TriggerDef, UniqueDef};
+use crate::domain::{CheckDef, Collation, ExcludeDef, ForeignKeyDef, IndexChoices, IndexDef, OpClass, Row, RuleDef, SchemaName, TableOptions, TableParts, TriggerDef, UniqueDef};
 
 /// Indexes that don't back a constraint (those show under their own tab).
 const INDEXES_SQL: &str = "SELECT i.relname, am.amname, ix.indisunique, obj_description(i.oid, 'pg_class'), \
@@ -32,11 +32,20 @@ const UNIQUES_SQL: &str = "SELECT c.conname, {cols}, obj_description(c.oid, 'pg_
      WHERE c.conrelid = {reg}::regclass AND c.contype = 'u' ORDER BY c.conname";
 const CHECKS_SQL: &str = "SELECT c.conname, pg_get_expr(c.conbin, c.conrelid), c.connoinherit, obj_description(c.oid, 'pg_constraint') \
      FROM pg_constraint c WHERE c.conrelid = {reg}::regclass AND c.contype = 'c' ORDER BY c.conname";
-const TRIGGERS_SQL: &str = "SELECT t.tgname, t.tgtype, t.tgenabled <> 'D', \
-     substring(pg_get_triggerdef(t.oid) from 'EXECUTE (?:FUNCTION|PROCEDURE) (.*)$'), \
+/// The function comes from `tgfoid`; its arguments and the WHEN condition are read
+/// back from the trigger's definition, as SQL text.
+const TRIGGERS_SQL: &str = "SELECT t.tgname, t.tgtype, t.tgenabled <> 'D', fn.nspname, p.proname, \
+     COALESCE(substring(pg_get_triggerdef(t.oid) from 'EXECUTE (?:FUNCTION|PROCEDURE) [^(]+\\((.*)\\)$'), ''), \
      (SELECT string_agg(a.attname, ', ') FROM unnest(t.tgattr::int2[]) k(att) JOIN pg_attribute a ON a.attrelid = t.tgrelid AND a.attnum = k.att), \
-     obj_description(t.oid, 'pg_trigger') \
-     FROM pg_trigger t WHERE t.tgrelid = {reg}::regclass AND NOT t.tgisinternal ORDER BY t.tgname";
+     obj_description(t.oid, 'pg_trigger'), \
+     COALESCE(substring(pg_get_triggerdef(t.oid) from 'WHEN \\((.*)\\) EXECUTE (?:FUNCTION|PROCEDURE) '), ''), \
+     t.tgconstraint <> 0, t.tgdeferrable, t.tginitdeferred, COALESCE(rn.nspname, ''), COALESCE(rc.relname, '') \
+     FROM pg_trigger t JOIN pg_proc p ON p.oid = t.tgfoid JOIN pg_namespace fn ON fn.oid = p.pronamespace \
+     LEFT JOIN pg_class rc ON rc.oid = t.tgconstrrelid LEFT JOIN pg_namespace rn ON rn.oid = rc.relnamespace \
+     WHERE t.tgrelid = {reg}::regclass AND NOT t.tgisinternal ORDER BY t.tgname";
+/// Functions a trigger can execute, outside the system schemas.
+const TRIGGER_FUNCTIONS_SQL: &str = "SELECT n.nspname, p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace \
+     WHERE p.prorettype = 'trigger'::regtype AND n.nspname NOT IN ('pg_catalog', 'information_schema') ORDER BY 1, 2";
 /// Elements come as "col WITH op" in key order; the predicate is the backing index's.
 const EXCLUDES_SQL: &str = "SELECT c.conname, am.amname, \
      (SELECT string_agg(pg_get_indexdef(c.conindid, k, true) || ' WITH ' || (SELECT o.oprname FROM pg_operator o WHERE o.oid = c.conexclop[k]), ', ' ORDER BY k) \
@@ -98,7 +107,8 @@ pub(super) fn index_choices(d: &mut dyn Driver, db: &str) -> Result<IndexChoices
         opclasses: d.rows(db, OPCLASSES_SQL)?.iter().map(|r| OpClass { schema: text(&r[0]), name: text(&r[1]), method: text(&r[2]) }).collect(),
         operators: d.rows(db, OPERATORS_SQL)?.iter().map(|r| text(&r[0])).collect(),
         tablespaces: d.rows(db, TABLESPACES_SQL)?.iter().map(|r| text(&r[0])).collect(),
-        tables: d.rows(db, REF_TABLES_SQL)?.iter().map(|r| SchemaTable { schema: text(&r[0]), name: text(&r[1]) }).collect(),
+        tables: schema_names(&d.rows(db, REF_TABLES_SQL)?),
+        trigger_functions: schema_names(&d.rows(db, TRIGGER_FUNCTIONS_SQL)?),
     })
 }
 
@@ -198,6 +208,11 @@ fn foreign_key_def(r: &Row) -> ForeignKeyDef {
     }
 }
 
+/// (schema, name) rows.
+fn schema_names(rows: &[Row]) -> Vec<SchemaName> {
+    rows.iter().map(|r| SchemaName { schema: text(&r[0]), name: text(&r[1]) }).collect()
+}
+
 fn unique_def(r: &Row) -> UniqueDef {
     UniqueDef {
         name: text(&r[0]),
@@ -233,10 +248,19 @@ fn trigger_def(r: &Row) -> TriggerDef {
         update: has(TRIGGER_UPDATE),
         delete: has(TRIGGER_DELETE),
         truncate: has(TRIGGER_TRUNCATE),
-        update_of: text(&r[4]),
         enabled: text(&r[2]) == "t",
-        body: text(&r[3]),
-        comment: text(&r[5]),
+        function_schema: text(&r[3]),
+        function: text(&r[4]),
+        arguments: text(&r[5]),
+        update_of: text(&r[6]),
+        comment: text(&r[7]),
+        when: text(&r[8]),
+        constraint: text(&r[9]) == "t",
+        deferrable: text(&r[10]) == "t",
+        deferred: text(&r[11]) == "t",
+        ref_schema: text(&r[12]),
+        ref_table: text(&r[13]),
+        body: String::new(),
         orig_name: None,
     }
 }

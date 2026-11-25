@@ -123,7 +123,8 @@ fn item_text(d: &dyn Dialect, c: &IndexColumn) -> String {
     std::iter::once(head).chain(collation).chain(opclass).chain(order).chain(nulls).chain(operator).collect::<Vec<_>>().join(" ")
 }
 
-fn qualify(d: &dyn Dialect, schema: &str, name: &str) -> String {
+/// `"schema"."name"`, or just `"name"` when the schema is empty.
+pub(super) fn qualify(d: &dyn Dialect, schema: &str, name: &str) -> String {
     match schema.trim() {
         "" => d.quote_ident(name),
         s => format!("{}.{}", d.quote_ident(s), d.quote_ident(name)),

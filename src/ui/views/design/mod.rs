@@ -15,7 +15,9 @@ mod parts_view;
 mod ref_state;
 mod state;
 mod tick_state;
+mod tick_view;
 mod toolbar;
+mod trigger_view;
 mod unique_view;
 
 pub use state::DesignTab;

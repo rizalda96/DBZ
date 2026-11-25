@@ -1,7 +1,8 @@
 //! PostgreSQL statements for the designer's indexes, triggers and storage options.
 
 use super::dialect::Dialect;
-use super::parts::{column_list, pick, DesignerCaps, IndexParamSpec, OptionKind, OptionSpec};
+use super::index_columns::qualify;
+use super::parts::{column_list, deferrable, pick, DesignerCaps, IndexParamSpec, OptionKind, OptionSpec};
 use super::postgres::PgDialect;
 use crate::domain::{IndexDef, TableOptions, TriggerDef};
 
@@ -80,17 +81,28 @@ pub(super) fn drop_index(d: &PgDialect, table: &str, name: &str) -> String {
     format!("DROP INDEX {}", d.quote_ident(&in_schema(table, name)))
 }
 
+/// `CREATE [CONSTRAINT] TRIGGER … EXECUTE FUNCTION f(args)`, then DISABLE and COMMENT
+/// when needed. Empty while it has no event or no function.
 pub(super) fn create_trigger(d: &PgDialect, table: &str, t: &TriggerDef) -> Vec<String> {
     let events = events(d, t);
-    let body = t.body.trim();
-    if events.is_empty() || body.is_empty() {
+    let function = t.function.trim();
+    if events.is_empty() || function.is_empty() {
         return vec![];
     }
-    let timing = pick(&t.fires, CAPS.trigger_timings).unwrap_or("AFTER");
-    let level = if t.for_each.trim().eq_ignore_ascii_case("STATEMENT") { "STATEMENT" } else { "ROW" };
-    let call = if body.ends_with(')') { body.to_string() } else { format!("{}()", body) };
     let (name, qt) = (d.quote_ident(&t.name), d.quote_ident(table));
-    let mut out = vec![format!("CREATE TRIGGER {} {} {} ON {} FOR EACH {} EXECUTE FUNCTION {}", name, timing, events.join(" OR "), qt, level, call)];
+    let mut s = if t.constraint {
+        // Constraint triggers always fire AFTER, once per row.
+        format!("CREATE CONSTRAINT TRIGGER {} AFTER {} ON {}{} FOR EACH ROW", name, events.join(" OR "), qt, constraint_clauses(d, t))
+    } else {
+        let timing = pick(&t.fires, CAPS.trigger_timings).unwrap_or("AFTER");
+        let level = if t.for_each.trim().eq_ignore_ascii_case("STATEMENT") { "STATEMENT" } else { "ROW" };
+        format!("CREATE TRIGGER {} {} {} ON {} FOR EACH {}", name, timing, events.join(" OR "), qt, level)
+    };
+    if !t.when.trim().is_empty() {
+        s.push_str(&format!(" WHEN ({})", t.when.trim()));
+    }
+    s.push_str(&format!(" EXECUTE FUNCTION {}({})", qualify(d, &t.function_schema, function), t.arguments.trim()));
+    let mut out = vec![s];
     if !t.enabled {
         out.push(format!("ALTER TABLE {} DISABLE TRIGGER {}", qt, name));
     }
@@ -98,6 +110,15 @@ pub(super) fn create_trigger(d: &PgDialect, table: &str, t: &TriggerDef) -> Vec<
         out.push(format!("COMMENT ON TRIGGER {} ON {} IS {}", name, qt, d.str_literal(&t.comment)));
     }
     out
+}
+
+/// ` FROM table` and the DEFERRABLE clause of a constraint trigger.
+fn constraint_clauses(d: &PgDialect, t: &TriggerDef) -> String {
+    let from = match t.ref_table.trim() {
+        "" => String::new(),
+        table => format!(" FROM {}", qualify(d, &t.ref_schema, table)),
+    };
+    format!("{}{}", from, deferrable(t.deferrable, t.deferred))
 }
 
 fn events(d: &PgDialect, t: &TriggerDef) -> Vec<String> {
@@ -132,5 +153,46 @@ fn option_action(d: &PgDialect, key: &str, v: &str) -> Option<String> {
         "fillfactor" if v.is_empty() => Some("RESET (fillfactor)".to_string()),
         "fillfactor" => v.parse::<u8>().ok().map(|n| format!("SET (fillfactor = {})", n)),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::create_trigger;
+    use crate::domain::TriggerDef;
+    use crate::sql::PgDialect;
+
+    fn trigger() -> TriggerDef {
+        TriggerDef {
+            name: "trg".into(),
+            for_each: "ROW".into(),
+            fires: "BEFORE".into(),
+            insert: true,
+            update: true,
+            update_of: "id_site".into(),
+            enabled: true,
+            function_schema: "public".into(),
+            function: "insert_data_pooling".into(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn trigger_with_when_function_and_arguments() {
+        let t = TriggerDef { when: "new.id_site IS NOT NULL".into(), arguments: "'pool', 3".into(), ..trigger() };
+        assert_eq!(
+            create_trigger(&PgDialect, "t", &t),
+            ["CREATE TRIGGER \"trg\" BEFORE INSERT OR UPDATE OF \"id_site\" ON \"t\" FOR EACH ROW WHEN (new.id_site IS NOT NULL) EXECUTE FUNCTION \"public\".\"insert_data_pooling\"('pool', 3)"]
+        );
+        assert!(create_trigger(&PgDialect, "t", &TriggerDef { function: " ".into(), ..trigger() }).is_empty());
+    }
+
+    #[test]
+    fn constraint_trigger_fires_after_each_row_from_its_table() {
+        let t = TriggerDef { constraint: true, deferrable: true, deferred: true, ref_schema: "public".into(), ref_table: "master_site".into(), for_each: "STATEMENT".into(), ..trigger() };
+        assert_eq!(
+            create_trigger(&PgDialect, "t", &t),
+            ["CREATE CONSTRAINT TRIGGER \"trg\" AFTER INSERT OR UPDATE OF \"id_site\" ON \"t\" FROM \"public\".\"master_site\" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION \"public\".\"insert_data_pooling\"()"]
+        );
     }
 }

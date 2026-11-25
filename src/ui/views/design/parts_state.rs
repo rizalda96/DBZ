@@ -1,7 +1,7 @@
 //! The designer's index, key, check and trigger lists and the table options; no egui.
 
 use super::index_cols_state::{ColsTarget, IndexColsEditor};
-use super::tick_state::TickEditor;
+use super::tick_state::{TickEditor, TickTarget};
 use crate::domain::{CheckDef, ExcludeDef, ForeignKeyDef, IndexDef, RuleDef, TableParts, TriggerDef, UniqueDef};
 use crate::sql::{DesignerCaps, Dialect};
 
@@ -153,17 +153,26 @@ impl PartsEditor {
         self.cols = source.map(|(columns, method)| IndexColsEditor::open(target, columns, method));
     }
 
-    /// Opens the unique fields editor on unique `i`, listing the table's `fields`.
-    pub fn open_ticks(&mut self, i: usize, fields: &[String]) {
-        self.ticks = self.parts.uniques.get(i).map(|u| TickEditor::open(i, &u.columns, fields));
+    /// Opens the field tick list on `target`'s fields, listing the table's `fields`.
+    pub fn open_ticks(&mut self, target: TickTarget, fields: &[String]) {
+        self.ticks = self.tick_slot(target).map(|current| TickEditor::open(target, current, fields));
     }
 
-    /// Closes the unique fields editor; with `ok`, writes the ticked fields back.
+    /// Closes the field tick list; with `ok`, writes the ticked fields back.
     pub fn close_ticks(&mut self, ok: bool) {
         let Some(ed) = self.ticks.take() else { return };
         let Some(text) = ok.then(|| ed.result()).flatten() else { return };
-        if let Some(u) = self.parts.uniques.get_mut(ed.target) {
-            u.columns = text;
+        if let Some(slot) = self.tick_slot(ed.target) {
+            *slot = text;
+        }
+    }
+
+    /// The field list a tick list edits.
+    fn tick_slot(&mut self, target: TickTarget) -> Option<&mut String> {
+        let p = &mut self.parts;
+        match target {
+            TickTarget::Unique(i) => p.uniques.get_mut(i).map(|u| &mut u.columns),
+            TickTarget::UpdateOf(i) => p.triggers.get_mut(i).map(|t| &mut t.update_of),
         }
     }
 
@@ -188,7 +197,7 @@ fn drop_row<T>(items: &mut Vec<T>, i: usize) {
 
 #[cfg(test)]
 mod tests {
-    use super::{ColsTarget, PartKind, PartsEditor};
+    use super::{ColsTarget, PartKind, PartsEditor, TickTarget};
     use crate::domain::{TableParts, UniqueDef};
 
     #[test]
@@ -228,14 +237,19 @@ mod tests {
         let mut e = PartsEditor::default();
         e.add(PartKind::Unique);
         let fields = ["id".to_string(), "code".to_string()];
-        e.open_ticks(0, &fields);
+        e.open_ticks(TickTarget::Unique(0), &fields);
         e.ticks.as_mut().expect("just opened").rows[1].on = true;
         e.close_ticks(false);
         assert_eq!(e.parts.uniques[0].columns, "");
-        e.open_ticks(0, &fields);
+        e.open_ticks(TickTarget::Unique(0), &fields);
         e.ticks.as_mut().expect("just opened").rows[1].on = true;
         e.close_ticks(true);
         assert_eq!((e.parts.uniques[0].columns.as_str(), e.ticks.is_none()), ("code", true));
+        e.add(PartKind::Trigger);
+        e.open_ticks(TickTarget::UpdateOf(0), &fields);
+        e.ticks.as_mut().expect("just opened").rows[0].on = true;
+        e.close_ticks(true);
+        assert_eq!((e.parts.triggers[0].update_of.as_str(), e.parts.uniques[0].columns.as_str()), ("id", "code"));
     }
 
     #[test]

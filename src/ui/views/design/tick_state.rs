@@ -1,6 +1,7 @@
-//! The unique fields editor's rows (no egui): every field of the table with a tick,
-//! the ticked ones first and in key order. Moving a row changes that order; OK writes
-//! the ticked ones back as "a, b".
+//! The field tick list's rows (no egui), for a unique constraint's Fields and a
+//! trigger's Update of Fields: every field of the table with a tick, the ticked ones
+//! first and in order. Moving a row changes that order; OK writes the ticked ones
+//! back as "a, b".
 
 use super::state::{move_selected, move_target};
 
@@ -14,9 +15,17 @@ pub struct TickRow {
     pub on: bool,
 }
 
+/// The row whose field list is being ticked.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum TickTarget {
+    /// A unique constraint's Fields.
+    Unique(usize),
+    /// A trigger's Update of Fields.
+    UpdateOf(usize),
+}
+
 pub struct TickEditor {
-    /// Row of the unique constraint being edited.
-    pub target: usize,
+    pub target: TickTarget,
     pub rows: Vec<TickRow>,
     pub sel: Option<usize>,
     /// The ticked fields as opened, to tell whether anything changed.
@@ -26,7 +35,7 @@ pub struct TickEditor {
 impl TickEditor {
     /// `columns` ticked (in their order, even names the table no longer has), then the
     /// rest of `fields` unticked.
-    pub fn open(target: usize, columns: &str, fields: &[String]) -> Self {
+    pub fn open(target: TickTarget, columns: &str, fields: &[String]) -> Self {
         let orig = list_items(columns);
         let ticked = orig.iter().map(|n| TickRow { name: n.clone(), on: true });
         let rest = fields.iter().filter(|f| !orig.contains(f)).map(|f| TickRow { name: f.clone(), on: false });
@@ -52,7 +61,7 @@ impl TickEditor {
 
 #[cfg(test)]
 mod tests {
-    use super::TickEditor;
+    use super::{TickEditor, TickTarget};
 
     fn fields() -> Vec<String> {
         ["id", "id_transporter", "id_site", "is_deleted"].map(String::from).to_vec()
@@ -60,7 +69,7 @@ mod tests {
 
     #[test]
     fn ticked_fields_come_first_in_key_order() {
-        let e = TickEditor::open(0, "id_transporter, id_site", &fields());
+        let e = TickEditor::open(TickTarget::Unique(0), "id_transporter, id_site", &fields());
         let rows: Vec<(&str, bool)> = e.rows.iter().map(|r| (r.name.as_str(), r.on)).collect();
         assert_eq!(rows, [("id_transporter", true), ("id_site", true), ("id", false), ("is_deleted", false)]);
         assert_eq!(e.result(), None);
@@ -68,7 +77,7 @@ mod tests {
 
     #[test]
     fn ticking_and_moving_change_the_list() {
-        let mut e = TickEditor::open(0, "id_transporter, id_site", &fields());
+        let mut e = TickEditor::open(TickTarget::UpdateOf(0), "id_transporter, id_site", &fields());
         e.sel = Some(1);
         e.move_sel(-1);
         e.rows[3].on = true;

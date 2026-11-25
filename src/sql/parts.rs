@@ -172,7 +172,7 @@ fn add_unique(d: &dyn Dialect, table: &str, u: &UniqueDef) -> String {
 }
 
 /// The DEFERRABLE clause of a constraint; empty when it isn't deferrable.
-fn deferrable(deferrable: bool, deferred: bool) -> &'static str {
+pub(super) fn deferrable(deferrable: bool, deferred: bool) -> &'static str {
     match (deferrable, deferred) {
         (false, _) => "",
         (true, false) => " DEFERRABLE INITIALLY IMMEDIATE",

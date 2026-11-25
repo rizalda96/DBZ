@@ -1,8 +1,10 @@
-//! Rows shared by the designer's property panels (index, foreign key, unique): a
-//! searchable drop-down and the DEFERRABLE / INITIALLY DEFERRED pair.
+//! Pieces shared by the designer's property panels under the grids (index, foreign
+//! key, unique, trigger, rule): the panel frame, a long-text panel, a searchable
+//! drop-down and the DEFERRABLE / INITIALLY DEFERRED pair.
 
-use eframe::egui::{self, Ui};
+use eframe::egui::{self, RichText, Stroke, Ui};
 
+use crate::ui::theme::pal;
 use crate::ui::widgets::{forget_search, search_list};
 
 /// Width of a panel's value column.
@@ -10,9 +12,14 @@ pub(super) const FIELD_WIDTH: f32 = 370.0;
 
 /// A searchable drop-down led by an empty entry; true when a value was picked.
 pub(super) fn combo(ui: &mut Ui, salt: impl std::hash::Hash + std::fmt::Debug, value: &mut String, options: &[String]) -> bool {
+    combo_sized(ui, (salt, FIELD_WIDTH), value, options)
+}
+
+/// [`combo`] at `width` points, for two drop-downs side by side.
+pub(super) fn combo_sized(ui: &mut Ui, (salt, width): (impl std::hash::Hash + std::fmt::Debug, f32), value: &mut String, options: &[String]) -> bool {
     // Its own search text, next to the combo's id.
     let search = ui.scope_id().with(("combo_search", &salt));
-    let combo = egui::ComboBox::from_id_salt(salt).selected_text(value.clone()).width(FIELD_WIDTH);
+    let combo = egui::ComboBox::from_id_salt(salt).selected_text(value.clone()).width(width);
     let entries = std::iter::once("").chain(options.iter().map(String::as_str));
     let shown = combo.close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside).show_ui(ui, |ui| search_list(ui, search, value, entries));
     let Some(picked) = shown.inner else {
@@ -22,6 +29,31 @@ pub(super) fn combo(ui: &mut Ui, salt: impl std::hash::Hash + std::fmt::Debug, v
     let Some(p) = picked else { return false };
     *value = p;
     true
+}
+
+/// Wording of a [`body_panel`].
+pub(super) struct PanelText {
+    pub label: &'static str,
+    pub hint: &'static str,
+    /// Shown while no row is selected.
+    pub empty: &'static str,
+}
+
+/// A resizable box under the grid for the selected row's long text.
+pub(super) fn body_panel(ui: &mut Ui, salt: (&'static str, u64), text: &PanelText, body: Option<&mut String>) {
+    egui::Panel::bottom(salt).resizable(true).default_size(120.0).frame(panel_frame()).show(ui, |ui| {
+        let Some(body) = body else {
+            ui.label(RichText::new(text.empty).color(pal().muted));
+            return;
+        };
+        ui.label(format!("{}:", text.label));
+        ui.add_sized([ui.available_width(), ui.available_height().max(40.0)], egui::TextEdit::multiline(body).hint_text(text.hint).font(egui::TextStyle::Monospace));
+    });
+}
+
+/// The look of the property panels under the grids.
+pub(super) fn panel_frame() -> egui::Frame {
+    egui::Frame::new().fill(pal().toolbar_bg).inner_margin(8).stroke(Stroke::new(1.0, pal().border))
 }
 
 /// "Deferrable:" and "Deferred:" rows of a `Grid`; Deferred is greyed out (and kept
