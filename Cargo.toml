@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-eframe = { version = "0.37", default-features = false, features = ["accesskit", "clipboard", "default_fonts", "glow", "persistence"] }
+# `wayland` and `x11` are the Linux window backends (ignored on Windows and macOS).
+eframe = { version = "0.37", default-features = false, features = ["accesskit", "clipboard", "default_fonts", "glow", "persistence", "wayland", "x11"] }
 egui_extras = { version = "0.37", default-features = false }
 image = { version = "0.25", default-features = false, features = ["png"] }
 mysql = { version = "28", default-features = false, features = ["minimal-rust"] }

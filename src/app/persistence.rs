@@ -1,4 +1,4 @@
-//! Settings and connections saved under `%APPDATA%\DBZ`.
+//! Settings and connections saved in the data folder (`shared::data_dir`).
 
 use std::path::{Path, PathBuf};
 
