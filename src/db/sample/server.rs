@@ -3,7 +3,7 @@
 use super::parser::{field_index, Parser, Res};
 use super::tokens::tokenize;
 use crate::db::DbError;
-use crate::domain::{FieldDef, ResultSet, Row, RoutineInfo, TableInfo};
+use crate::domain::{FieldDef, ResultSet, Row, RoutineInfo, TableInfo, TableParts};
 use crate::sql::{Dialect, MySqlDialect};
 
 /// Size of one storage page, used to fake a "Data Length".
@@ -17,6 +17,8 @@ pub struct SampleTable {
     pub auto_inc: u64,
     pub created: String,
     pub modified: String,
+    /// Indexes, constraints, triggers and options; stored, not enforced.
+    pub parts: TableParts,
 }
 
 pub struct SampleDb {
@@ -53,6 +55,7 @@ impl SampleTable {
             modified: self.modified.clone(),
             comment: self.comment.clone(),
             collation: "utf8mb4_general_ci".into(),
+            ..Default::default()
         }
     }
 }

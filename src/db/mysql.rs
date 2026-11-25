@@ -3,8 +3,8 @@
 use mysql::prelude::Queryable;
 
 use super::driver::{number, text, Driver};
-use super::DbError;
-use crate::domain::{Cell, ConnConfig, FieldDef, ResultSet, RoutineInfo, Row, TableInfo};
+use super::{mysql_parts, DbError};
+use crate::domain::{Cell, ConnConfig, FieldDef, ResultSet, RoutineInfo, Row, TableInfo, TableParts};
 use crate::sql::{Dialect, MySqlDialect};
 
 static DIALECT: MySqlDialect = MySqlDialect;
@@ -75,7 +75,7 @@ impl Driver for MySqlDriver {
 
     fn routines(&mut self, db: &str) -> Result<Vec<RoutineInfo>, DbError> {
         let sql = ROUTINES_SQL.replace("{db}", &DIALECT.str_literal(db));
-        Ok(self.rows(db, &sql)?.iter().map(|r| RoutineInfo { name: text(&r[0]), kind: text(&r[1]), returns: text(&r[2]) }).collect())
+        Ok(self.rows(db, &sql)?.iter().map(|r| RoutineInfo { name: text(&r[0]), kind: text(&r[1]), returns: text(&r[2]), ..Default::default() }).collect())
     }
 
     fn columns(&mut self, db: &str, table: &str) -> Result<Vec<FieldDef>, DbError> {
@@ -87,6 +87,11 @@ impl Driver for MySqlDriver {
         let sql = format!("SHOW CREATE {} {}", if is_view { "VIEW" } else { "TABLE" }, DIALECT.quote_ident(table));
         let rows = self.rows(db, &sql)?;
         Ok(rows.first().and_then(|r| r.get(1).cloned().flatten()).map(|d| format!("{};", d)).unwrap_or_default())
+    }
+
+    fn table_parts(&mut self, db: &str, table: &str) -> Result<TableParts, DbError> {
+        let lits = (DIALECT.str_literal(db), DIALECT.str_literal(table));
+        mysql_parts::table_parts(self, db, (&lits.0, &lits.1))
     }
 
     fn users(&mut self) -> Result<ResultSet, DbError> {
@@ -109,6 +114,7 @@ fn table_info(r: &Row) -> TableInfo {
         modified: text(&r[6]),
         comment: text(&r[7]),
         collation: text(&r[8]),
+        ..Default::default()
     }
 }
 

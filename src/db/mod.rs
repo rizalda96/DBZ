@@ -4,7 +4,9 @@
 mod driver;
 mod error;
 mod mysql;
+mod mysql_parts;
 mod postgres;
+mod postgres_parts;
 mod sample;
 
 pub use driver::{open_driver, Driver};

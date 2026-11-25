@@ -4,7 +4,7 @@ use super::mysql::MySqlDriver;
 use super::postgres::PgDriver;
 use super::sample::{SampleDriver, SharedSample};
 use super::DbError;
-use crate::domain::{Cell, ConnConfig, DbKind, FieldDef, ResultSet, RoutineInfo, Row, TableInfo};
+use crate::domain::{Cell, ConnConfig, DbKind, FieldDef, IndexChoices, ResultSet, RoutineInfo, Row, TableInfo, TableParts};
 use crate::sql::Dialect;
 
 /// One open connection. Implementations own their client and are used from a single
@@ -15,8 +15,23 @@ pub trait Driver: Send {
     fn databases(&mut self) -> Result<Vec<String>, DbError>;
     fn tables(&mut self, db: &str) -> Result<Vec<TableInfo>, DbError>;
     fn routines(&mut self, db: &str) -> Result<Vec<RoutineInfo>, DbError>;
+
+    /// Schemas inside `db`; empty on servers without schemas, whose tree then shows
+    /// the object folders directly under the database.
+    fn schemas(&mut self, _db: &str) -> Result<Vec<String>, DbError> {
+        Ok(vec![])
+    }
+
     fn columns(&mut self, db: &str, table: &str) -> Result<Vec<FieldDef>, DbError>;
     fn ddl(&mut self, db: &str, table: &str, is_view: bool) -> Result<String, DbError>;
+    /// Indexes, constraints, triggers and options of `table`, for the designer.
+    fn table_parts(&mut self, db: &str, table: &str) -> Result<TableParts, DbError>;
+
+    /// Schemas, collations and operator classes index columns can use; empty on
+    /// servers whose index columns have none of these.
+    fn index_choices(&mut self, _db: &str) -> Result<IndexChoices, DbError> {
+        Ok(IndexChoices::default())
+    }
     fn users(&mut self) -> Result<ResultSet, DbError>;
     fn dialect(&self) -> &'static dyn Dialect;
 

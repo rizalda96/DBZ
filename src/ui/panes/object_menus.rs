@@ -8,10 +8,10 @@ use crate::ui::widgets::menu_item;
 /// What double-clicking an object in `mode` does.
 pub(super) fn open_act(mode: ObjMode, obj: ObjRef, is_view: bool) -> Act {
     match mode {
-        ObjMode::Tables | ObjMode::Views => Act::OpenTable(obj, is_view),
+        ObjMode::Tables | ObjMode::Views | ObjMode::MatViews => Act::OpenTable(obj, is_view),
         ObjMode::Queries => Act::OpenSavedQuery(obj),
         ObjMode::Backups => Act::RestoreBackup(obj),
-        _ => Act::Select(Sel { cid: Some(obj.cid), db: Some(obj.db), obj: Some(obj.name) }),
+        _ => Act::Select(Sel { obj: Some(obj.name), ..Sel::db(obj.cid, obj.db) }),
     }
 }
 
@@ -45,6 +45,10 @@ pub(super) fn object_menu(ui: &mut Ui, mode: ObjMode, obj: &ObjRef, acts: &mut V
             menu_item(ui, acts, "Delete View", Act::DropTables(obj.cid, obj.db.clone(), vec![obj.name.clone()], true));
             menu_item(ui, acts, "Export Wizard…", Act::Export(obj.clone()));
         }
+        ObjMode::MatViews => {
+            menu_item(ui, acts, "Open Materialized View", Act::OpenTable(obj.clone(), true));
+            menu_item(ui, acts, "Export Wizard…", Act::Export(obj.clone()));
+        }
         ObjMode::Functions => menu_item(ui, acts, "Delete", Act::DropRoutine(obj.clone(), "FUNCTION".into())),
         ObjMode::Queries => {
             menu_item(ui, acts, "Open Query", Act::OpenSavedQuery(obj.clone()));
@@ -56,7 +60,7 @@ pub(super) fn object_menu(ui: &mut Ui, mode: ObjMode, obj: &ObjRef, acts: &mut V
         }
         ObjMode::Users => {}
     }
-    if matches!(mode, ObjMode::Tables | ObjMode::Views | ObjMode::Functions) && ui.button("Copy Name").clicked() {
+    if matches!(mode, ObjMode::Tables | ObjMode::Views | ObjMode::MatViews | ObjMode::Functions) && ui.button("Copy Name").clicked() {
         ui.ctx().copy_text(obj.name.clone());
         ui.close();
     }

@@ -7,8 +7,8 @@ use std::collections::HashMap;
 use postgres::SimpleQueryMessage;
 
 use super::driver::{number, text, Driver};
-use super::DbError;
-use crate::domain::{ConnConfig, FieldDef, ResultSet, RoutineInfo, Row, TableInfo};
+use super::{postgres_parts, DbError};
+use crate::domain::{ConnConfig, FieldDef, IndexChoices, ResultSet, RoutineInfo, Row, TableInfo, TableParts};
 use crate::sql::{Dialect, PgDialect};
 
 static DIALECT: PgDialect = PgDialect;
@@ -19,9 +19,10 @@ const TABLES_SQL: &str = "SELECT c.relname, n.nspname, c.relkind, c.reltuples::b
     FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace \
     WHERE c.relkind IN ('r','v','m','p') AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%' \
     ORDER BY n.nspname <> 'public', n.nspname, c.relname";
-const ROUTINES_SQL: &str = "SELECT p.proname, CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END, pg_get_function_result(p.oid) \
+const ROUTINES_SQL: &str = "SELECT p.proname, CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END, pg_get_function_result(p.oid), n.nspname \
     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace \
-    WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND p.prokind IN ('f','p') ORDER BY 1";
+    WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND p.prokind IN ('f','p') ORDER BY n.nspname <> 'public', n.nspname, 1";
+const SCHEMAS_SQL: &str = "SELECT nspname FROM pg_namespace WHERE nspname <> 'information_schema' AND nspname !~ '^pg_' ORDER BY nspname <> 'public', nspname";
 const COLUMNS_SQL: &str = "SELECT a.attname, format_type(a.atttypid, a.atttypmod), a.attnotnull, pg_get_expr(d.adbin, d.adrelid), col_description(a.attrelid, a.attnum), \
      EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = a.attrelid AND i.indisprimary AND a.attnum = ANY(i.indkey)) \
      FROM pg_attribute a LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum \
@@ -96,7 +97,11 @@ impl Driver for PgDriver {
     }
 
     fn routines(&mut self, db: &str) -> Result<Vec<RoutineInfo>, DbError> {
-        Ok(self.rows(db, ROUTINES_SQL)?.iter().map(|r| RoutineInfo { name: text(&r[0]), kind: text(&r[1]), returns: text(&r[2]) }).collect())
+        Ok(self.rows(db, ROUTINES_SQL)?.iter().map(routine_info).collect())
+    }
+
+    fn schemas(&mut self, db: &str) -> Result<Vec<String>, DbError> {
+        Ok(self.rows(db, SCHEMAS_SQL)?.iter().map(|r| text(&r[0])).collect())
     }
 
     fn columns(&mut self, db: &str, table: &str) -> Result<Vec<FieldDef>, DbError> {
@@ -107,14 +112,23 @@ impl Driver for PgDriver {
     fn ddl(&mut self, db: &str, table: &str, is_view: bool) -> Result<String, DbError> {
         let reg = Self::regclass(table);
         if is_view {
-            let rows = self.rows(db, &format!("SELECT pg_get_viewdef({}::regclass, true)", reg))?;
-            let def = rows.first().map(|r| text(&r[0])).unwrap_or_default();
-            return Ok(format!("CREATE OR REPLACE VIEW {} AS\n{}", DIALECT.quote_ident(table), def));
+            let rows = self.rows(db, &format!("SELECT pg_get_viewdef({0}::regclass, true), relkind FROM pg_class WHERE oid = {0}::regclass", reg))?;
+            let (def, kind) = rows.first().map(|r| (text(&r[0]), text(&r[1]))).unwrap_or_default();
+            let create = if kind == "m" { "CREATE MATERIALIZED VIEW" } else { "CREATE OR REPLACE VIEW" };
+            return Ok(format!("{} {} AS\n{}", create, DIALECT.quote_ident(table), def));
         }
         let cols = self.columns(db, table)?;
         let rows = self.rows(db, &format!("SELECT obj_description({}::regclass, 'pg_class')", reg))?;
         let comment = rows.first().map(|r| text(&r[0])).unwrap_or_default();
         Ok(DIALECT.create_table(table, &cols, &comment).join(";\n") + ";")
+    }
+
+    fn table_parts(&mut self, db: &str, table: &str) -> Result<TableParts, DbError> {
+        postgres_parts::table_parts(self, db, &Self::regclass(table))
+    }
+
+    fn index_choices(&mut self, db: &str) -> Result<IndexChoices, DbError> {
+        postgres_parts::index_choices(self, db)
     }
 
     fn users(&mut self) -> Result<ResultSet, DbError> {
@@ -150,19 +164,30 @@ fn collect_sets(msgs: Vec<SimpleQueryMessage>, sql: &str) -> Vec<ResultSet> {
     out
 }
 
+/// `name` as other code addresses it: bare in `public`, "schema.name" elsewhere.
+fn qualified(schema: &str, name: String) -> String {
+    if schema == "public" { name } else { format!("{}.{}", schema, name) }
+}
+
 fn table_info(r: &Row) -> TableInfo {
     let schema = text(&r[1]);
-    let name = if schema == "public" { text(&r[0]) } else { format!("{}.{}", schema, text(&r[0])) };
     let kind = text(&r[2]);
     TableInfo {
-        name,
+        name: qualified(&schema, text(&r[0])),
+        schema,
         is_view: kind == "v" || kind == "m",
+        materialized: kind == "m",
         rows: number::<i64>(&r[3]).map(|v| v.max(0) as u64),
         data_length: number(&r[4]),
         engine: format!("owner: {}", text(&r[6])),
         comment: text(&r[5]),
         ..Default::default()
     }
+}
+
+fn routine_info(r: &Row) -> RoutineInfo {
+    let schema = text(&r[3]);
+    RoutineInfo { name: qualified(&schema, text(&r[0])), schema, kind: text(&r[1]), returns: text(&r[2]) }
 }
 
 fn field_def(r: &Row) -> FieldDef {

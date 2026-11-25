@@ -1,6 +1,6 @@
 //! Databases, folders, the object mode and the DDL cache.
 
-use super::{Confirm, Dbz, Dialog, ObjMode, ObjRef, Sel};
+use super::{Confirm, Dbz, Dialog, FolderRef, ObjMode, ObjRef, Sel};
 use crate::worker::Req;
 
 impl Dbz {
@@ -30,8 +30,10 @@ impl Dbz {
         }
     }
 
-    /// Asks for tables and routines and re-reads saved files.
+    /// Asks for schemas, tables and routines and re-reads saved files. Schemas go first
+    /// so the tree already knows them when the tables arrive and mark the database loaded.
     fn load_db(&mut self, cid: u64, db: &str) {
+        self.send(cid, Req::Schemas(db.to_string()));
         self.send(cid, Req::Tables(db.to_string()));
         self.send(cid, Req::Routines(db.to_string()));
         self.scan_files(cid, db);
@@ -41,6 +43,7 @@ impl Dbz {
         if let Some(d) = self.ws.db_mut(cid, db) {
             d.expanded = false;
             d.loaded = false;
+            d.schemas.clear();
             d.tables.clear();
             d.routines.clear();
         }
@@ -64,16 +67,24 @@ impl Dbz {
         self.confirm("Delete Database", msg, Confirm::DropDb(cid, db));
     }
 
-    pub(super) fn select_folder(&mut self, cid: u64, db: String, mode: ObjMode) {
-        self.ws.mode = mode;
+    pub(super) fn select_folder(&mut self, f: FolderRef) {
+        self.ws.mode = f.mode;
         self.ws.active = 0;
-        self.ws.sel = Sel::db(cid, db);
+        self.ws.sel = Sel::in_schema(f.cid, f.db, f.schema, None);
     }
 
-    pub(super) fn toggle_folder(&mut self, cid: u64, db: &str, mode: ObjMode) {
+    pub(super) fn toggle_folder(&mut self, f: FolderRef) {
+        let Some(d) = self.ws.db_mut(f.cid, &f.db) else { return };
+        let key = (f.schema, f.mode);
+        if !d.open_folders.remove(&key) {
+            d.open_folders.insert(key);
+        }
+    }
+
+    pub(super) fn toggle_schema(&mut self, cid: u64, db: &str, schema: String) {
         let Some(d) = self.ws.db_mut(cid, db) else { return };
-        if !d.open_folders.remove(&mode) {
-            d.open_folders.insert(mode);
+        if !d.open_schemas.remove(&schema) {
+            d.open_schemas.insert(schema);
         }
     }
 

@@ -20,9 +20,21 @@ pub(super) fn handle(d: &mut dyn Driver, cfg: &ConnConfig, req: Req) -> Resp {
             let r = d.routines(&db);
             Resp::Routines(db, r)
         }
+        Req::Schemas(db) => {
+            let r = d.schemas(&db);
+            Resp::Schemas(db, r)
+        }
         Req::Columns { db, table } => {
             let result = d.columns(&db, &table);
             Resp::Columns { db, table, result }
+        }
+        Req::TableParts { db, table } => {
+            let result = d.table_parts(&db, &table);
+            Resp::TableParts { db, table, result }
+        }
+        Req::IndexChoices(db) => {
+            let r = d.index_choices(&db);
+            Resp::IndexChoices(db, r)
         }
         Req::Ddl { db, table, is_view } => {
             let result = d.ddl(&db, &table, is_view);

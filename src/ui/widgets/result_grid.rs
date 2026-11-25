@@ -14,7 +14,8 @@ pub fn result_grid(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, colu
         ui.label(RichText::new("  No result set").color(pal().muted));
         return;
     }
-    ui.push_id(id, |ui| table(ui, columns, rows, sel));
+    // TableBuilder only scrolls vertically; wide results need an outer horizontal scroll.
+    ui.push_id(id, |ui| egui::ScrollArea::horizontal().auto_shrink(false).show(ui, |ui| table(ui, columns, rows, sel)));
     copy_shortcut(ui, rows, *sel);
 }
 

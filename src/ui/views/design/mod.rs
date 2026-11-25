@@ -1,18 +1,25 @@
-//! The table designer tab: fields grid, table comment and SQL preview.
+//! The table designer tab: fields, indexes, keys, checks, triggers, options, table
+//! comment and SQL preview.
 
 mod grid;
+mod index_cols_state;
+mod index_cols_view;
+mod parts_cells;
+mod parts_grid;
+mod parts_state;
+mod parts_view;
 mod state;
 mod toolbar;
 
 pub use state::DesignTab;
+
+use state::DesignSub;
 
 use eframe::egui::{self, FontId, RichText, Stroke, Ui};
 
 use crate::app::Act;
 use crate::ui::theme::pal;
 use crate::ui::widgets::sql_layouter;
-
-const SUB_TABS: [&str; 3] = ["Fields", "Comment", "SQL Preview"];
 
 pub fn design_view(ui: &mut Ui, t: &mut DesignTab, acts: &mut Vec<Act>) {
     let save_key = ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::S));
@@ -22,18 +29,21 @@ pub fn design_view(ui: &mut Ui, t: &mut DesignTab, acts: &mut Vec<Act>) {
         ui.colored_label(pal().err, format!("  {}", e));
     }
     match t.sub {
-        1 => comment(ui, t),
-        2 => sql_preview(ui, t),
-        _ => fields(ui, t),
+        DesignSub::Fields => fields(ui, t),
+        DesignSub::Part(k) => parts_view::list(ui, t, k),
+        DesignSub::Options => parts_view::options(ui, t),
+        DesignSub::Comment => comment(ui, t),
+        DesignSub::SqlPreview => sql_preview(ui, t),
     }
 }
 
 fn sub_tabs(ui: &mut Ui, t: &mut DesignTab) {
     egui::Frame::new().fill(pal().header_bg).inner_margin(egui::Margin::symmetric(6, 2)).show(ui, |ui| {
         ui.horizontal(|ui| {
-            for (i, l) in SUB_TABS.iter().enumerate() {
-                if ui.selectable_label(t.sub == i, *l).clicked() {
-                    t.sub = i;
+            let caps = t.dialect().designer();
+            for sub in DesignSub::all().filter(|s| s.offered(caps)) {
+                if ui.selectable_label(t.sub == sub, sub.label()).clicked() {
+                    t.sub = sub;
                 }
             }
         });

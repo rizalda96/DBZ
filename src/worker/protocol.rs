@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use crate::db::DbError;
-use crate::domain::{FieldDef, ResultSet, RoutineInfo, TableInfo};
+use crate::domain::{FieldDef, IndexChoices, ResultSet, RoutineInfo, TableInfo, TableParts};
 use crate::transfer::{ExportOptions, ImportOptions};
 
 /// Rows of one page of a table, plus how it was fetched.
@@ -21,7 +21,11 @@ pub enum Req {
     Databases,
     Tables(String),
     Routines(String),
+    Schemas(String),
     Columns { db: String, table: String },
+    TableParts { db: String, table: String },
+    /// Schemas, collations and operator classes for the index fields editor.
+    IndexChoices(String),
     Ddl { db: String, table: String, is_view: bool },
     Query { tab: u64, db: String, sql: String },
     TableData { tab: u64, db: String, page: PageQuery },
@@ -52,7 +56,10 @@ pub enum Resp {
     Databases(Result<Vec<String>, DbError>),
     Tables(String, Result<Vec<TableInfo>, DbError>),
     Routines(String, Result<Vec<RoutineInfo>, DbError>),
+    Schemas(String, Result<Vec<String>, DbError>),
     Columns { db: String, table: String, result: Result<Vec<FieldDef>, DbError> },
+    TableParts { db: String, table: String, result: Result<TableParts, DbError> },
+    IndexChoices(String, Result<IndexChoices, DbError>),
     Ddl { db: String, table: String, result: Result<String, DbError> },
     Query { tab: u64, results: Vec<ResultSet>, error: Option<(String, DbError)>, elapsed: Duration },
     TableData { tab: u64, result: Result<TablePage, DbError>, sql: String, elapsed: Duration },

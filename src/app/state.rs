@@ -17,6 +17,7 @@ use crate::worker::Req;
 pub enum ObjMode {
     Tables,
     Views,
+    MatViews,
     Functions,
     Queries,
     Backups,
@@ -28,6 +29,7 @@ impl ObjMode {
         match self {
             ObjMode::Tables => "Tables",
             ObjMode::Views => "Views",
+            ObjMode::MatViews => "Materialized Views",
             ObjMode::Functions => "Functions",
             ObjMode::Queries => "Queries",
             ObjMode::Backups => "Backups",
@@ -39,10 +41,21 @@ impl ObjMode {
         match self {
             ObjMode::Tables => Icon::Table,
             ObjMode::Views => Icon::View,
+            ObjMode::MatViews => Icon::MatView,
             ObjMode::Functions => Icon::Function,
             ObjMode::Queries => Icon::Query,
             ObjMode::Backups => Icon::Backup,
             ObjMode::Users => Icon::User,
+        }
+    }
+
+    /// True when `t` is listed under this mode (Tables, Views or Materialized Views).
+    pub fn holds(self, t: &TableInfo) -> bool {
+        match self {
+            ObjMode::Tables => !t.is_view,
+            ObjMode::Views => t.is_view && !t.materialized,
+            ObjMode::MatViews => t.materialized,
+            ObjMode::Functions | ObjMode::Queries | ObjMode::Backups | ObjMode::Users => false,
         }
     }
 }
@@ -66,23 +79,29 @@ pub struct SavedFile {
     pub preview: String,
 }
 
+/// A tree folder: its schema (None = directly under the database) and kind.
+pub type FolderKey = (Option<String>, ObjMode);
+
+#[derive(Default)]
 pub struct DbState {
     pub name: String,
     pub expanded: bool,
     pub loaded: bool,
     pub loading: bool,
+    /// Empty on servers without schemas.
+    pub schemas: Vec<String>,
     pub tables: Vec<TableInfo>,
     pub routines: Vec<RoutineInfo>,
     pub error: Option<String>,
-    pub open_folders: HashSet<ObjMode>,
+    pub open_schemas: HashSet<String>,
+    pub open_folders: HashSet<FolderKey>,
     pub queries: Vec<SavedFile>,
     pub backups: Vec<SavedFile>,
 }
 
 impl DbState {
     pub fn new(name: String) -> Self {
-        let open_folders = HashSet::from([ObjMode::Tables]);
-        DbState { name, expanded: false, loaded: false, loading: false, tables: vec![], routines: vec![], error: None, open_folders, queries: vec![], backups: vec![] }
+        DbState { name, ..Default::default() }
     }
 
     pub fn files(&self, mode: ObjMode) -> &[SavedFile] {
@@ -126,16 +145,23 @@ impl ConnState {
 pub struct Sel {
     pub cid: Option<u64>,
     pub db: Option<String>,
+    /// Narrows the Objects tab to one schema.
+    pub schema: Option<String>,
     pub obj: Option<String>,
 }
 
 impl Sel {
     pub fn conn(cid: u64) -> Self {
-        Sel { cid: Some(cid), db: None, obj: None }
+        Sel { cid: Some(cid), ..Default::default() }
     }
 
     pub fn db(cid: u64, db: impl Into<String>) -> Self {
-        Sel { cid: Some(cid), db: Some(db.into()), obj: None }
+        Sel { cid: Some(cid), db: Some(db.into()), ..Default::default() }
+    }
+
+    /// An object, or a folder when `obj` is None, in a schema.
+    pub fn in_schema(cid: u64, db: impl Into<String>, schema: Option<String>, obj: Option<String>) -> Self {
+        Sel { schema, obj, ..Sel::db(cid, db) }
     }
 
     /// Connection and database, when both are selected.
@@ -220,5 +246,23 @@ pub struct PaneState {
 impl Default for PaneState {
     fn default() -> Self {
         PaneState { obj_filter: String::new(), tree_filter: String::new(), show_info: true, info_ddl: false }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ObjMode;
+    use crate::domain::TableInfo;
+
+    #[test]
+    fn each_relation_lands_in_one_folder() {
+        let table = TableInfo::default();
+        let view = TableInfo { is_view: true, ..Default::default() };
+        let matview = TableInfo { is_view: true, materialized: true, ..Default::default() };
+        let modes = [ObjMode::Tables, ObjMode::Views, ObjMode::MatViews];
+        let held = |t: &TableInfo| modes.into_iter().filter(|m| m.holds(t)).collect::<Vec<_>>();
+        assert_eq!(held(&table), [ObjMode::Tables]);
+        assert_eq!(held(&view), [ObjMode::Views]);
+        assert_eq!(held(&matview), [ObjMode::MatViews]);
     }
 }

@@ -2,7 +2,7 @@
 //! fixed seed so every run looks the same.
 
 use super::server::{SampleDb, SampleServer, SampleTable};
-use crate::domain::{FieldDef, Row};
+use crate::domain::{FieldDef, Row, TableParts};
 
 const FIRST_NAMES: [&str; 20] = ["Ava", "Liam", "Noah", "Mia", "Ethan", "Sofia", "Lucas", "Amara", "Kenji", "Lena", "Omar", "Priya", "Mateo", "Hana", "Jonas", "Zara", "Ivan", "Nora", "Felix", "Leila"];
 const LAST_NAMES: [&str; 15] = ["Walker", "Nguyen", "Santos", "Kim", "Fischer", "Rossi", "Okafor", "Tanaka", "Dubois", "Haddad", "Larsen", "Patel", "Moreno", "Sato", "Novak"];
@@ -76,7 +76,7 @@ const OPT: (bool, bool, bool) = (false, false, false);
 
 fn table(name: &str, comment: &str, fields: Vec<FieldDef>, rows: Vec<Row>) -> SampleTable {
     let auto_inc = rows.len() as u64;
-    SampleTable { name: name.into(), fields, rows, comment: comment.into(), auto_inc, created: "2026-01-12 09:30:00".into(), modified: "2026-11-20 16:05:12".into() }
+    SampleTable { name: name.into(), fields, rows, comment: comment.into(), auto_inc, created: "2026-01-12 09:30:00".into(), modified: "2026-11-20 16:05:12".into(), parts: TableParts::default() }
 }
 
 pub fn sample_server() -> SampleServer {

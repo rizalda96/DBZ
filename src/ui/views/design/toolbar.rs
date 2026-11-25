@@ -2,6 +2,8 @@
 
 use eframe::egui::{self, Ui};
 
+use super::parts_state::PartKind;
+use super::state::DesignSub;
 use super::DesignTab;
 use crate::app::Act;
 use crate::ui::icons::Icon;
@@ -14,15 +16,11 @@ pub(super) fn show(ui: &mut Ui, t: &mut DesignTab, save_key: bool, acts: &mut Ve
             ui.spacing_mut().item_spacing.x = 2.0;
             save_button(ui, t, save_key, acts);
             tool_sep(ui);
-            field_buttons(ui, t);
-            tool_sep(ui);
-            if tool_btn(ui, None, "Move Up", t.can_move(-1)).clicked() {
-                t.move_field(-1);
+            match t.sub {
+                DesignSub::Fields => field_buttons(ui, t),
+                DesignSub::Part(k) => part_buttons(ui, t, k),
+                DesignSub::Options | DesignSub::Comment | DesignSub::SqlPreview => {}
             }
-            if tool_btn(ui, None, "Move Down", t.can_move(1)).clicked() {
-                t.move_field(1);
-            }
-            tool_sep(ui);
             ui.label("Table name:");
             ui.add(egui::TextEdit::singleline(&mut t.name).desired_width(180.0));
             if t.loading || t.saving {
@@ -61,4 +59,24 @@ fn field_buttons(ui: &mut Ui, t: &mut DesignTab) {
     if let (true, Some(i)) = (tool_btn(ui, Some(Icon::Key), "Primary Key", t.sel.is_some()).clicked(), t.sel) {
         t.toggle_key(i);
     }
+    tool_sep(ui);
+    if tool_btn(ui, None, "Move Up", t.can_move(-1)).clicked() {
+        t.move_field(-1);
+    }
+    if tool_btn(ui, None, "Move Down", t.can_move(1)).clicked() {
+        t.move_field(1);
+    }
+    tool_sep(ui);
+}
+
+/// Add / Delete for the Indexes … Triggers tabs.
+fn part_buttons(ui: &mut Ui, t: &mut DesignTab, k: PartKind) {
+    let ready = !t.parts.loading;
+    if tool_btn(ui, Some(Icon::Add), &format!("Add {}", k.noun()), ready).clicked() {
+        t.parts.add(k);
+    }
+    if tool_btn(ui, Some(Icon::Delete), &format!("Delete {}", k.noun()), ready && t.parts.sel(k).is_some()).clicked() {
+        t.parts.delete(k);
+    }
+    tool_sep(ui);
 }

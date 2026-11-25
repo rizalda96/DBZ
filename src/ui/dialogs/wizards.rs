@@ -4,7 +4,7 @@ use std::path::Path;
 
 use eframe::egui::{self, RichText, Ui};
 
-use super::common::{buttons, file_row, win, Choice};
+use crate::ui::widgets::{buttons, file_row, win, Choice};
 use crate::app::Act;
 use crate::shared::sanitize;
 use crate::transfer::{ExportFormat, ExportOptions, ImportOptions};

@@ -2,7 +2,7 @@
 
 use eframe::egui::{self, vec2, RichText, Sense, Ui};
 
-use super::common::win;
+use crate::ui::widgets::win;
 use crate::app::{Act, ConnDialog};
 use crate::domain::{ConnConfig, DbKind};
 use crate::ui::icons::{self, Icon};

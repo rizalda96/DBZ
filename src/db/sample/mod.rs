@@ -8,6 +8,7 @@ mod ddl;
 mod dml;
 mod driver;
 mod parser;
+mod parts;
 mod seed;
 mod select;
 mod server;

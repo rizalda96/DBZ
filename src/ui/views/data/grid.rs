@@ -21,9 +21,15 @@ struct Events {
 
 pub(super) fn show(ui: &mut Ui, t: &mut DataTab, editable: bool, acts: &mut Vec<Act>) {
     keyboard(ui, t, editable);
+    let mut ev = Events::default();
+    // TableBuilder only scrolls vertically; wide tables need an outer horizontal scroll.
+    egui::ScrollArea::horizontal().id_salt(("dgrid_h", t.id)).auto_shrink(false).show(ui, |ui| table(ui, t, editable, &mut ev));
+    apply(ui, t, ev, acts);
+}
+
+fn table(ui: &mut Ui, t: &mut DataTab, editable: bool, ev: &mut Events) {
     let keys: Vec<bool> = t.columns.iter().map(|c| t.fields.iter().any(|f| &f.name == c && f.key)).collect();
     let preview: Vec<Row> = t.rows.iter().take(50).map(|r| r.cur.clone()).collect();
-    let mut ev = Events::default();
     ui.spacing_mut().item_spacing = vec2(0.0, 0.0);
     let mut tb = TableBuilder::new(ui)
         .id_salt(("dgrid", t.id))
@@ -53,9 +59,8 @@ pub(super) fn show(ui: &mut Ui, t: &mut DataTab, editable: bool, acts: &mut Vec<
     })
     .body(|body| {
         let n_rows = t.rows.len();
-        body.rows(22.0, n_rows, |mut row| grid_row(&mut row, t, editable, &mut ev));
+        body.rows(22.0, n_rows, |mut row| grid_row(&mut row, t, editable, ev));
     });
-    apply(ui, t, ev, acts);
 }
 
 fn header(ui: &mut Ui, name: &str, key: bool, order: &Option<(String, bool)>) {

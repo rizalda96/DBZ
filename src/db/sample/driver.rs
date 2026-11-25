@@ -4,7 +4,7 @@ use std::sync::MutexGuard;
 
 use super::{SampleServer, SharedSample};
 use crate::db::{DbError, Driver};
-use crate::domain::{FieldDef, ResultSet, RoutineInfo, TableInfo};
+use crate::domain::{FieldDef, ResultSet, RoutineInfo, TableInfo, TableParts};
 use crate::sql::{dialect_for, split_statements, Dialect};
 
 pub struct SampleDriver {
@@ -45,6 +45,10 @@ impl Driver for SampleDriver {
 
     fn ddl(&mut self, db: &str, table: &str, _is_view: bool) -> Result<String, DbError> {
         self.lock()?.ddl(db, table)
+    }
+
+    fn table_parts(&mut self, db: &str, table: &str) -> Result<TableParts, DbError> {
+        Ok(self.lock()?.table(db, table)?.parts.clone().loaded())
     }
 
     fn users(&mut self) -> Result<ResultSet, DbError> {

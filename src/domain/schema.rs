@@ -2,8 +2,13 @@
 
 #[derive(Clone, Debug, Default)]
 pub struct TableInfo {
+    /// Qualified as "schema.table" outside the default schema.
     pub name: String,
+    /// Schema it lives in; empty on servers without schemas.
+    pub schema: String,
     pub is_view: bool,
+    /// A materialized view; `is_view` is true as well.
+    pub materialized: bool,
     pub rows: Option<u64>,
     pub data_length: Option<u64>,
     pub engine: String,
@@ -15,7 +20,10 @@ pub struct TableInfo {
 
 #[derive(Clone, Debug, Default)]
 pub struct RoutineInfo {
+    /// Qualified as "schema.routine" outside the default schema.
     pub name: String,
+    /// Schema it lives in; empty on servers without schemas.
+    pub schema: String,
     pub kind: String,
     pub returns: String,
 }

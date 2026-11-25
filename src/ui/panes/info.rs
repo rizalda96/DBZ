@@ -11,7 +11,7 @@ use crate::ui::theme::{kind_color, pal};
 const PG_OWNER_PREFIX: &str = "owner: ";
 
 pub fn info(ui: &mut Ui, ws: &Workspace, info_ddl: &mut bool, acts: &mut Vec<Act>) {
-    let table_sel = ws.sel.obj.is_some() && matches!(ws.mode, ObjMode::Tables | ObjMode::Views);
+    let table_sel = ws.sel.obj.is_some() && matches!(ws.mode, ObjMode::Tables | ObjMode::Views | ObjMode::MatViews);
     tabs(ui, info_ddl, table_sel);
     let Some(c) = ws.sel.cid.and_then(|cid| ws.conn(cid)) else {
         ui.add_space(30.0);
@@ -51,8 +51,8 @@ fn body(ui: &mut Ui, ws: &Workspace, c: &ConnState, show_ddl: bool, acts: &mut V
     };
     let obj = ObjRef::new(c.cfg.id, dbn, name);
     match ws.mode {
-        ObjMode::Tables | ObjMode::Views if show_ddl => ddl(ui, ws, d, &obj, acts),
-        ObjMode::Tables | ObjMode::Views => table(ui, c, d, name),
+        ObjMode::Tables | ObjMode::Views | ObjMode::MatViews if show_ddl => ddl(ui, ws, d, &obj, acts),
+        ObjMode::Tables | ObjMode::Views | ObjMode::MatViews => table(ui, c, d, name),
         ObjMode::Functions => {
             let r = d.and_then(|d| d.routines.iter().find(|r| r.name == name));
             header(ui, Icon::Function, name, &r.map(|r| r.kind.clone()).unwrap_or_default());
@@ -115,7 +115,12 @@ fn database(ui: &mut Ui, d: &DbState) {
 fn table(ui: &mut Ui, c: &ConnState, d: Option<&DbState>, name: &str) {
     let t = d.and_then(|d| d.tables.iter().find(|t| t.name == name));
     let is_view = t.is_some_and(|t| t.is_view);
-    header(ui, if is_view { Icon::View } else { Icon::Table }, name, if is_view { "View" } else { "Table" });
+    let (icon, kind) = match t {
+        Some(t) if t.materialized => (Icon::MatView, "Materialized View"),
+        Some(t) if t.is_view => (Icon::View, "View"),
+        _ => (Icon::Table, "Table"),
+    };
+    header(ui, icon, name, kind);
     let Some(t) = t else { return };
     let pg = c.cfg.kind == DbKind::PostgreSql;
     if !is_view {

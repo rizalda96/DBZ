@@ -19,6 +19,15 @@ impl ObjRef {
     }
 }
 
+/// A folder in the connection tree (Tables, Views…), of a database or one of its schemas.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FolderRef {
+    pub cid: u64,
+    pub db: String,
+    pub schema: Option<String>,
+    pub mode: ObjMode,
+}
+
 pub enum Act {
     // connections
     Send(u64, Req),
@@ -44,8 +53,9 @@ pub enum Act {
     DropDb(u64, String),
     // selection and navigation
     Select(Sel),
-    SelectFolder(u64, String, ObjMode),
-    ToggleFolder(u64, String, ObjMode),
+    SelectFolder(FolderRef),
+    ToggleFolder(FolderRef),
+    ToggleSchema(u64, String, String),
     SetMode(ObjMode),
     LoadDdl(ObjRef, bool),
     // tables and routines

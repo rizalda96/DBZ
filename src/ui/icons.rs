@@ -9,11 +9,13 @@ pub enum Icon {
     NewQuery,
     Table,
     View,
+    MatView,
     Function,
     User,
     Query,
     Backup,
     Database { open: bool },
+    Schema,
     Folder,
     Key,
     Conn { color: Color32, open: bool },
@@ -29,6 +31,8 @@ pub enum Icon {
     Check,
     Discard,
     Minus,
+    MoveUp,
+    MoveDown,
 }
 
 const BLUE: Color32 = Color32::from_rgb(0x2f, 0x7d, 0xd1);
@@ -76,6 +80,18 @@ fn grid(p: &Painter, r: Rect, head: Color32) {
     p.rect_stroke(r, 2.0, Stroke::new(1.0, head), StrokeKind::Inside);
 }
 
+/// A plain arrow pointing up or down (move a row).
+fn move_arrow(p: &Painter, r: Rect, up: bool) {
+    let s = r.width();
+    let st = Stroke::new(s * 0.12, pal().icon_stroke);
+    let (top, bottom) = (r.top() + s * 0.18, r.bottom() - s * 0.18);
+    let (tip, tail, back) = if up { (top, bottom, s * 0.28) } else { (bottom, top, -s * 0.28) };
+    let x = r.center().x;
+    p.line_segment([pos2(x, tail), pos2(x, tip)], st);
+    p.line_segment([pos2(x - s * 0.28, tip + back), pos2(x, tip)], st);
+    p.line_segment([pos2(x + s * 0.28, tip + back), pos2(x, tip)], st);
+}
+
 pub fn paint(p: &Painter, r: Rect, icon: Icon) {
     let s = r.width().min(r.height());
     let r = Rect::from_center_size(r.center(), vec2(s, s));
@@ -99,12 +115,13 @@ pub fn paint(p: &Painter, r: Rect, icon: Icon) {
             }
         }
         Icon::Table => grid(p, r.shrink2(vec2(s * 0.06, s * 0.14)), BLUE),
-        Icon::View => {
-            grid(p, r.shrink2(vec2(s * 0.06, s * 0.14)), TEAL);
+        Icon::View | Icon::MatView => {
+            let col = if icon == Icon::View { TEAL } else { RED };
+            grid(p, r.shrink2(vec2(s * 0.06, s * 0.14)), col);
             let c = pos2(r.right() - s * 0.25, r.bottom() - s * 0.25);
             p.add(Shape::ellipse_filled(c, vec2(s * 0.22, s * 0.13), Color32::WHITE));
-            p.add(Shape::ellipse_stroke(c, vec2(s * 0.22, s * 0.13), Stroke::new(1.2, TEAL)));
-            p.circle_filled(c, s * 0.07, TEAL);
+            p.add(Shape::ellipse_stroke(c, vec2(s * 0.22, s * 0.13), Stroke::new(1.2, col)));
+            p.circle_filled(c, s * 0.07, col);
         }
         Icon::Function => {
             p.rect_filled(r.shrink(s * 0.08), s * 0.15, PURPLE);
@@ -128,6 +145,13 @@ pub fn paint(p: &Painter, r: Rect, icon: Icon) {
             let body = if open { Color32::from_rgb(0x4c, 0xa0, 0x6a) } else { Color32::from_gray(150) };
             let top = if open { Color32::from_rgb(0x95, 0xd4, 0xa8) } else { Color32::from_gray(200) };
             cylinder(p, r.shrink2(vec2(s * 0.16, s * 0.06)), body, top);
+        }
+        Icon::Schema => {
+            // Three stacked layers: a namespace that holds tables.
+            for (i, col) in [BLUE, TEAL, PURPLE].into_iter().enumerate() {
+                let top = r.top() + s * (0.14 + i as f32 * 0.26);
+                p.rect_filled(Rect::from_min_size(pos2(r.left() + s * 0.1, top), vec2(s * 0.8, s * 0.2)), 2.0, col);
+            }
         }
         Icon::Folder => {
             let b = r.shrink2(vec2(s * 0.04, s * 0.16));
@@ -215,6 +239,7 @@ pub fn paint(p: &Painter, r: Rect, icon: Icon) {
             let k = r.shrink(s * 0.2);
             p.line_segment([pos2(k.left(), k.center().y), pos2(k.right(), k.center().y)], Stroke::new(s * 0.13, RED));
         }
+        Icon::MoveUp | Icon::MoveDown => move_arrow(p, r, icon == Icon::MoveUp),
     }
 }
 

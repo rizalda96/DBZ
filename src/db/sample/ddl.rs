@@ -2,9 +2,10 @@
 
 use super::coldef::{parse_coldef, set_primary_key};
 use super::parser::{Parser, Res};
+use super::parts::{add_constraint, drop_part, table_option};
 use super::server::{default_cell, find_field, SampleDb, SampleServer, SampleTable};
 use crate::db::DbError;
-use crate::domain::{FieldDef, Row};
+use crate::domain::{FieldDef, Row, TableParts};
 use crate::shared::now_string;
 
 impl SampleServer {
@@ -16,6 +17,16 @@ impl SampleServer {
             }
             self.dbs.push(SampleDb { name, tables: vec![] });
             return Ok(());
+        }
+        if p.kw("UNIQUE") {
+            p.expect_kw("INDEX")?;
+            return self.create_index(db, p, true);
+        }
+        if p.kw("INDEX") {
+            return self.create_index(db, p, false);
+        }
+        if p.kw("TRIGGER") {
+            return self.create_trigger(db, p);
         }
         p.expect_kw("TABLE")?;
         let if_not = p.kw("IF");
@@ -31,7 +42,7 @@ impl SampleServer {
             return if if_not { Ok(()) } else { Err(DbError::query(format!("Table '{}' already exists", name))) };
         }
         let now = now_string();
-        d.tables.push(SampleTable { name, fields, rows: vec![], comment, auto_inc: 0, created: now.clone(), modified: now });
+        d.tables.push(SampleTable { name, fields, rows: vec![], comment, auto_inc: 0, created: now.clone(), modified: now, parts: TableParts::default() });
         d.tables.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(())
     }
@@ -45,6 +56,12 @@ impl SampleServer {
                 return Err(DbError::query(format!("Can't drop database '{}'; database doesn't exist", name)));
             }
             return Ok(());
+        }
+        if p.kw("INDEX") {
+            return self.drop_index(db, p);
+        }
+        if p.kw("TRIGGER") {
+            return self.drop_trigger(db, p);
         }
         p.expect_kw("TABLE")?;
         let if_exists = p.kw("IF");
@@ -72,6 +89,7 @@ impl SampleServer {
         tb.rows = tb.rows.iter().map(|r| plan.migrate(r)).collect();
         tb.fields = plan.fields;
         tb.comment = plan.comment;
+        tb.parts = plan.parts;
         tb.modified = now_string();
         if let Some(n) = plan.rename_to {
             self.table_mut(db, &t)?.name = n;
@@ -132,12 +150,13 @@ struct AlterPlan {
     fields: Vec<FieldDef>,
     map: Vec<Option<usize>>,
     comment: String,
+    parts: TableParts,
     rename_to: Option<String>,
 }
 
 impl AlterPlan {
     fn new(tb: &SampleTable) -> Self {
-        AlterPlan { fields: tb.fields.clone(), map: (0..tb.fields.len()).map(Some).collect(), comment: tb.comment.clone(), rename_to: None }
+        AlterPlan { fields: tb.fields.clone(), map: (0..tb.fields.len()).map(Some).collect(), comment: tb.comment.clone(), parts: tb.parts.clone(), rename_to: None }
     }
 
     fn action(&mut self, p: &mut Parser) -> Res<()> {
@@ -155,12 +174,17 @@ impl AlterPlan {
             p.sym("=");
             self.comment = p.literal()?.unwrap_or_default();
             Ok(())
+        } else if table_option(&mut self.parts.options, p)? {
+            Ok(())
         } else {
             Err(DbError::query(format!("Unsupported ALTER TABLE action near {}", p.near())))
         }
     }
 
     fn add(&mut self, p: &mut Parser) -> Res<()> {
+        if p.kw("CONSTRAINT") {
+            return add_constraint(&mut self.parts, p);
+        }
         if p.kw("PRIMARY") {
             p.expect_kw("KEY")?;
             let keys = p.ident_list()?;
@@ -175,6 +199,9 @@ impl AlterPlan {
     }
 
     fn drop(&mut self, p: &mut Parser) -> Res<()> {
+        if drop_part(&mut self.parts, p)? {
+            return Ok(());
+        }
         if p.kw("PRIMARY") {
             p.expect_kw("KEY")?;
             self.fields.iter_mut().for_each(|f| f.key = false);

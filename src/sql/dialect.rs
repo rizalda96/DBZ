@@ -1,8 +1,9 @@
 //! The `Dialect` strategy: everything about SQL text that differs between servers.
 
 use super::mysql::MySqlDialect;
+use super::parts::{ConstraintKind, DesignerCaps};
 use super::postgres::PgDialect;
-use crate::domain::{Cell, DbKind, FieldDef};
+use crate::domain::{Cell, DbKind, FieldDef, IndexDef, TableOptions, TriggerDef};
 
 /// Starter scripts offered by the "New View / Function / User" buttons.
 pub struct SqlTemplates {
@@ -43,6 +44,22 @@ pub trait Dialect: Sync {
     fn dump_prologue(&self) -> &'static str;
     fn dump_epilogue(&self) -> &'static str;
     fn templates(&self) -> &'static SqlTemplates;
+
+    /// What the designer's Indexes / Foreign Keys / … / Options tabs offer.
+    fn designer(&self) -> &'static DesignerCaps;
+    fn create_index(&self, table: &str, index: &IndexDef) -> Vec<String>;
+    fn drop_index(&self, table: &str, name: &str) -> String;
+    fn drop_constraint(&self, table: &str, kind: ConstraintKind, name: &str) -> String;
+    /// Empty when the trigger is incomplete (no event or no body).
+    fn create_trigger(&self, table: &str, trigger: &TriggerDef) -> Vec<String>;
+    fn drop_trigger(&self, table: &str, name: &str) -> String;
+    /// Statements that turn the `old` storage options into the `new` ones.
+    fn table_options(&self, table: &str, old: &TableOptions, new: &TableOptions) -> Vec<String>;
+
+    /// `COMMENT ON CONSTRAINT`, on servers that keep comments on constraints.
+    fn constraint_comment(&self, _table: &str, _name: &str, _comment: &str) -> Option<String> {
+        None
+    }
 
     fn str_literal(&self, s: &str) -> String {
         format!("'{}'", self.escape_str(s))

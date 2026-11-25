@@ -55,9 +55,11 @@ impl Dbz {
             d.table = Some(new_name.clone());
             d.name = new_name.clone();
             d.loading = true;
+            d.parts.loading = true;
             d.orig_comment = d.comment.clone();
         }
         self.send(cid, Req::Columns { db: db.clone(), table: new_name.clone() });
+        self.send(cid, Req::TableParts { db: db.clone(), table: new_name.clone() });
         self.status = format!("Table \"{}\" saved", new_name);
         self.refresh_db(cid, db.clone());
         let reloads: Vec<Req> = self

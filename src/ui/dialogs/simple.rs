@@ -2,7 +2,7 @@
 
 use eframe::egui::{self, vec2, Color32, FontId, RichText, Sense};
 
-use super::common::{buttons, win, Choice};
+use crate::ui::widgets::{buttons, win, Choice};
 use crate::app::Act;
 use crate::domain::DbKind;
 use crate::sql::{dialect_for, Dialect};

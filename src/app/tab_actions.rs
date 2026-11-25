@@ -36,12 +36,14 @@ impl Dbz {
         }
         let kind = self.ws.kind_of(cid);
         let id = self.new_tab_id();
+        self.send(cid, Req::IndexChoices(db.clone()));
         let Some(tn) = table else {
             return self.push_tab(Tab::Design(DesignTab::new_table(id, cid, kind, db)));
         };
         let comment = self.ws.conn(cid).and_then(|c| c.db(&db)).and_then(|d| d.tables.iter().find(|t| t.name == tn)).map(|t| t.comment.clone()).unwrap_or_default();
         self.push_tab(Tab::Design(DesignTab::existing(id, cid, kind, db.clone(), (tn.clone(), comment))));
-        self.send(cid, Req::Columns { db, table: tn });
+        self.send(cid, Req::Columns { db: db.clone(), table: tn.clone() });
+        self.send(cid, Req::TableParts { db, table: tn });
     }
 
     pub(super) fn ask_drop_tables(&mut self, cid: u64, db: String, names: Vec<String>, view: bool) {

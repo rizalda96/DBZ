@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use super::{ConnStatus, Dbz, DbState, Tab};
 use crate::db::DbError;
-use crate::domain::{FieldDef, ResultSet, RoutineInfo, TableInfo};
+use crate::domain::{FieldDef, IndexChoices, ResultSet, RoutineInfo, TableInfo, TableParts};
 use crate::ui::views::RowState;
 use crate::worker::{Resp, TablePage};
 
@@ -43,7 +43,10 @@ impl Dbz {
             Resp::Databases(Err(e)) => self.alert("Databases", e.to_string()),
             Resp::Tables(db, r) => self.tables(cid, &db, r),
             Resp::Routines(db, r) => self.routines(cid, &db, r),
+            Resp::Schemas(db, r) => self.schemas(cid, &db, r),
             Resp::Columns { db, table, result } => self.columns(cid, (&db, &table), result),
+            Resp::TableParts { db, table, result } => self.table_parts(cid, (&db, &table), result),
+            Resp::IndexChoices(db, r) => self.index_choices(cid, &db, r),
             Resp::Ddl { db, table, result } => {
                 self.ws.ddl_cache.insert((cid, db, table), result);
             }
@@ -83,6 +86,7 @@ impl Dbz {
                 }
                 Tab::Design(d) => {
                     d.loading = false;
+                    d.parts.loading = false;
                     d.saving = false;
                 }
             }
@@ -129,6 +133,14 @@ impl Dbz {
         }
     }
 
+    fn schemas(&mut self, cid: u64, db: &str, r: Result<Vec<String>, DbError>) {
+        let Some(d) = self.ws.db_mut(cid, db) else { return };
+        match r {
+            Ok(s) => d.schemas = s,
+            Err(e) => self.status = format!("Error loading schemas: {}", e),
+        }
+    }
+
     /// Fills designer tabs that were waiting for these columns.
     fn columns(&mut self, cid: u64, (db, table): (&str, &str), result: Result<Vec<FieldDef>, DbError>) {
         let waiting = self.ws.tabs.iter_mut().filter_map(|t| match t {
@@ -143,6 +155,41 @@ impl Dbz {
                     d.orig = f.clone();
                 }
                 Err(e) => d.error = Some(e.to_string()),
+            }
+        }
+    }
+
+    /// Fills designer tabs that were waiting for the table's indexes, keys and triggers.
+    fn table_parts(&mut self, cid: u64, (db, table): (&str, &str), result: Result<TableParts, DbError>) {
+        let waiting = self.ws.tabs.iter_mut().filter_map(|t| match t {
+            Tab::Design(d) if d.cid == cid && d.db == db && d.table.as_deref() == Some(table) && d.parts.loading => Some(d),
+            _ => None,
+        });
+        for d in waiting {
+            match &result {
+                Ok(p) => d.parts.loaded(p.clone()),
+                Err(e) => {
+                    d.parts.loading = false;
+                    d.error = Some(format!("Could not read indexes, keys and triggers: {}", e));
+                }
+            }
+        }
+    }
+
+    /// Gives designer tabs of `db` the drop-down lists of the index fields editor.
+    fn index_choices(&mut self, cid: u64, db: &str, r: Result<IndexChoices, DbError>) {
+        let choices = match r {
+            Ok(c) => c,
+            Err(e) => {
+                self.status = format!("Could not read collations and operator classes: {}", e);
+                return;
+            }
+        };
+        for t in self.ws.tabs.iter_mut() {
+            if let Tab::Design(d) = t {
+                if d.cid == cid && d.db == db {
+                    d.index_choices = choices.clone();
+                }
             }
         }
     }

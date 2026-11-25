@@ -2,7 +2,9 @@
 
 use super::dialect::{create_table_head, default_expr, Dialect, SqlTemplates, TableChange};
 use super::diff::{diff, ColumnDiff};
-use crate::domain::FieldDef;
+use super::mysql_parts as parts;
+use super::parts::{ConstraintKind, DesignerCaps};
+use crate::domain::{FieldDef, IndexDef, TableOptions, TriggerDef};
 
 pub struct MySqlDialect;
 
@@ -122,6 +124,34 @@ impl Dialect for MySqlDialect {
 
     fn templates(&self) -> &'static SqlTemplates {
         &TEMPLATES
+    }
+
+    fn designer(&self) -> &'static DesignerCaps {
+        &parts::CAPS
+    }
+
+    fn create_index(&self, table: &str, index: &IndexDef) -> Vec<String> {
+        parts::create_index(self, table, index)
+    }
+
+    fn drop_index(&self, table: &str, name: &str) -> String {
+        parts::drop_index(self, table, name)
+    }
+
+    fn drop_constraint(&self, table: &str, kind: ConstraintKind, name: &str) -> String {
+        parts::drop_constraint(self, table, kind, name)
+    }
+
+    fn create_trigger(&self, table: &str, trigger: &TriggerDef) -> Vec<String> {
+        parts::create_trigger(self, table, trigger)
+    }
+
+    fn drop_trigger(&self, _table: &str, name: &str) -> String {
+        parts::drop_trigger(self, name)
+    }
+
+    fn table_options(&self, table: &str, old: &TableOptions, new: &TableOptions) -> Vec<String> {
+        parts::table_options(self, table, old, new)
     }
 }
 

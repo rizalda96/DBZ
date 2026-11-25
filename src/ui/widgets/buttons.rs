@@ -15,11 +15,8 @@ pub fn tool_btn(ui: &mut Ui, icon: Option<Icon>, text: &str, enabled: bool) -> R
     let galley = ui.painter().layout_no_wrap(text.to_owned(), FontId::proportional(12.5), color);
     let w = galley.size().x + if icon.is_some() { 41.0 } else { 20.0 };
     let (rect, resp) = ui.allocate_exact_size(vec2(w, 26.0), if enabled { Sense::click() } else { Sense::hover() });
+    hover_frame(ui, rect, &resp, enabled);
     let p = ui.painter();
-    if enabled && resp.hovered() {
-        p.rect_filled(rect, 3.0, pal().hover_bg);
-        p.rect_stroke(rect, 3.0, Stroke::new(1.0, pal().focus_border), egui::StrokeKind::Inside);
-    }
     let mut x = rect.left() + 10.0;
     if let Some(i) = icon {
         let ir = Rect::from_center_size(pos2(x + 8.0, rect.center().y), vec2(16.0, 16.0));
@@ -31,6 +28,26 @@ pub fn tool_btn(ui: &mut Ui, icon: Option<Icon>, text: &str, enabled: bool) -> R
     }
     p.galley(pos2(x, rect.center().y - galley.size().y / 2.0), galley, color);
     resp
+}
+
+/// Small square button with just an icon; `tip` names it on hover.
+pub fn icon_btn(ui: &mut Ui, icon: Icon, tip: &str, enabled: bool) -> Response {
+    let (rect, resp) = ui.allocate_exact_size(vec2(24.0, 24.0), if enabled { Sense::click() } else { Sense::hover() });
+    hover_frame(ui, rect, &resp, enabled);
+    let p = ui.painter();
+    let ir = Rect::from_center_size(rect.center(), vec2(14.0, 14.0));
+    icons::paint(p, ir, icon);
+    if !enabled {
+        p.rect_filled(ir.expand(1.0), 0.0, theme::veil(pal().toolbar_bg));
+    }
+    resp.on_hover_text(tip)
+}
+
+fn hover_frame(ui: &Ui, rect: Rect, resp: &Response, enabled: bool) {
+    if enabled && resp.hovered() {
+        ui.painter().rect_filled(rect, 3.0, pal().hover_bg);
+        ui.painter().rect_stroke(rect, 3.0, Stroke::new(1.0, pal().focus_border), egui::StrokeKind::Inside);
+    }
 }
 
 /// Big icon-over-label button of the top ribbon.

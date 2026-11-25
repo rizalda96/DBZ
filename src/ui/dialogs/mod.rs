@@ -1,15 +1,14 @@
 //! Pop-up windows: alerts, confirmations, wizards and the connection editor. They edit
 //! their own state and push `Act`s; the app does the work.
 
-mod common;
 mod connection;
 mod simple;
 mod wizards;
 
 use eframe::egui;
 
-use common::Choice;
 use crate::app::{Act, Dialog, DialogState, Workspace};
+use crate::ui::widgets::Choice;
 
 /// Draws whichever dialog is open. The alert wins over everything else.
 pub fn show(ctx: &egui::Context, st: &mut DialogState, ws: &Workspace, acts: &mut Vec<Act>) {

@@ -28,7 +28,7 @@ pub(super) fn show(ui: &mut Ui, ws: &Workspace, filter: &mut String, acts: &mut 
             };
             match ws.mode {
                 ObjMode::Tables => table_buttons(ui, &t, ws.sel.obj.clone(), &mut b),
-                ObjMode::Views | ObjMode::Functions | ObjMode::Users => code_buttons(ui, ws, &t, &mut b),
+                ObjMode::Views | ObjMode::MatViews | ObjMode::Functions | ObjMode::Users => code_buttons(ui, ws, &t, &mut b),
                 ObjMode::Queries | ObjMode::Backups => file_buttons(ui, ws, &t, &mut b),
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -62,6 +62,7 @@ fn code_buttons(ui: &mut Ui, ws: &Workspace, t: &Target, b: &mut Button) {
             b(ui, Icon::Add, "New View", t.has_db, Act::NewQuery(o.cid, o.db.clone(), tpl.new_view.into()));
             b(ui, Icon::Delete, "Delete View", t.has_obj, Act::DropTables(o.cid, o.db.clone(), vec![o.name.clone()], true));
         }
+        ObjMode::MatViews => b(ui, Icon::MatView, "Open Materialized View", t.has_obj, Act::OpenTable(o.clone(), true)),
         ObjMode::Functions => {
             b(ui, Icon::Add, "New Function", t.has_db, Act::NewQuery(o.cid, o.db.clone(), tpl.new_function.into()));
             b(ui, Icon::Delete, "Delete Function", t.has_obj, Act::DropRoutine(o.clone(), routine_kind(ws, o)));

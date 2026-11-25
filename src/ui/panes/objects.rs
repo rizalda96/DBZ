@@ -40,14 +40,17 @@ pub fn objects(ui: &mut Ui, ws: &Workspace, filter_text: &mut String, acts: &mut
     let list = ObjectList { ws, cid, d, filter: &filter };
     if let Some((name, is_view, open)) = list.show(ui, acts) {
         let obj = ObjRef::new(cid, &dbn, &name);
-        acts.push(if open { open_act(ws.mode, obj, is_view) } else { Act::Select(Sel { cid: Some(cid), db: Some(dbn), obj: Some(name) }) });
+        acts.push(if open { open_act(ws.mode, obj, is_view) } else { Act::Select(Sel::in_schema(cid, dbn, ws.sel.schema.clone(), Some(name))) });
     }
 }
 
 fn breadcrumb(ui: &mut Ui, ws: &Workspace) {
     let Some(c) = ws.sel.cid.and_then(|c| ws.conn(c)) else { return };
     let crumb = match &ws.sel.db {
-        Some(d) if ws.mode != ObjMode::Users => format!("{}   ›   {}   ›   {}", c.cfg.name, d, ws.mode.label()),
+        Some(d) if ws.mode != ObjMode::Users => {
+            let schema = ws.sel.schema.as_ref().map(|s| format!("   ›   {}", s)).unwrap_or_default();
+            format!("{}   ›   {}{}   ›   {}", c.cfg.name, d, schema, ws.mode.label())
+        }
         _ => format!("{}   ›   {}", c.cfg.name, if ws.mode == ObjMode::Users { "Users" } else { "Databases" }),
     };
     egui::Frame::new().inner_margin(egui::Margin::symmetric(10, 4)).show(ui, |ui| {
@@ -156,8 +159,9 @@ impl ObjectList<'_> {
     fn show(&self, ui: &mut Ui, acts: &mut Vec<Act>) -> Option<(String, bool, bool)> {
         let mode = self.ws.mode;
         let (headers, items, empty): (&[&str], Vec<Listed>, &str) = match mode {
-            ObjMode::Tables => (&TABLE_HEADERS, self.tables(false), "No tables yet. Press New Table to create one."),
-            ObjMode::Views => (&VIEW_HEADERS, self.tables(true), "No views in this database."),
+            ObjMode::Tables => (&TABLE_HEADERS, self.tables(mode), "No tables yet. Press New Table to create one."),
+            ObjMode::Views => (&VIEW_HEADERS, self.tables(mode), "No views in this database."),
+            ObjMode::MatViews => (&VIEW_HEADERS, self.tables(mode), "No materialized views in this schema."),
             ObjMode::Functions => (&["Name", "Type", "Returns"], self.routines(), "No functions or procedures in this database."),
             ObjMode::Queries => (&["Name", "Size", "Modified Date"], self.files(mode), "No saved queries yet. Open a New Query and press Save."),
             ObjMode::Backups => (&["Name", "Size", "Modified Date"], self.files(mode), "No backups yet. Press New Backup to make one."),
@@ -183,9 +187,14 @@ impl ObjectList<'_> {
         self.filter.is_empty() || name.to_lowercase().contains(self.filter)
     }
 
-    fn tables(&self, views: bool) -> Vec<Listed> {
-        let tables = self.d.tables.iter().filter(|t| t.is_view == views && self.matches(&t.name));
-        if views {
+    /// True unless another schema than `schema` is selected.
+    fn in_schema(&self, schema: &str) -> bool {
+        self.ws.sel.schema.as_deref().is_none_or(|s| s == schema)
+    }
+
+    fn tables(&self, mode: ObjMode) -> Vec<Listed> {
+        let tables = self.d.tables.iter().filter(|t| mode.holds(t) && self.in_schema(&t.schema) && self.matches(&t.name));
+        if mode != ObjMode::Tables {
             return tables.map(|t| (t.name.clone(), true, vec![t.name.clone(), t.engine.clone(), t.comment.clone()])).collect();
         }
         tables
@@ -198,7 +207,7 @@ impl ObjectList<'_> {
     }
 
     fn routines(&self) -> Vec<Listed> {
-        self.d.routines.iter().filter(|r| self.matches(&r.name)).map(|r| (r.name.clone(), false, vec![r.name.clone(), r.kind.clone(), r.returns.clone()])).collect()
+        self.d.routines.iter().filter(|r| self.in_schema(&r.schema) && self.matches(&r.name)).map(|r| (r.name.clone(), false, vec![r.name.clone(), r.kind.clone(), r.returns.clone()])).collect()
     }
 
     fn files(&self, mode: ObjMode) -> Vec<Listed> {
