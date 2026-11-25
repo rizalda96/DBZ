@@ -1,5 +1,4 @@
 //! MySQL / MariaDB statements for the designer's indexes, triggers and storage options.
-//! The sample engine accepts the same statements.
 
 use super::dialect::Dialect;
 use super::mysql::MySqlDialect;

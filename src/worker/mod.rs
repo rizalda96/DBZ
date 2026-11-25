@@ -10,7 +10,7 @@ use std::sync::mpsc::{Receiver, Sender};
 
 use eframe::egui;
 
-use crate::db::{open_driver, SharedSample};
+use crate::db::open_driver;
 use crate::domain::ConnConfig;
 
 /// Where a worker sends its replies, and how it wakes the UI.
@@ -29,16 +29,16 @@ impl ReplyTo {
 }
 
 /// Starts a worker for `cfg` and returns the channel to send it requests.
-pub fn spawn(cfg: ConnConfig, sample: SharedSample, reply: ReplyTo) -> Sender<Req> {
+pub fn spawn(cfg: ConnConfig, reply: ReplyTo) -> Sender<Req> {
     let (rtx, rrx) = std::sync::mpsc::channel::<Req>();
-    std::thread::spawn(move || run(cfg, sample, rrx, reply));
+    std::thread::spawn(move || run(cfg, rrx, reply));
     rtx
 }
 
 /// Connects on the first request, then serves requests until the sender is dropped.
-fn run(cfg: ConnConfig, sample: SharedSample, rx: Receiver<Req>, reply: ReplyTo) {
+fn run(cfg: ConnConfig, rx: Receiver<Req>, reply: ReplyTo) {
     let Ok(first) = rx.recv() else { return };
-    let mut driver = match open_driver(&cfg, &sample) {
+    let mut driver = match open_driver(&cfg) {
         Ok(d) => d,
         Err(e) => return reply.send(cfg.id, Resp::ConnectFailed(e)),
     };

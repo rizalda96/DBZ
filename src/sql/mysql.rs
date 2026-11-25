@@ -1,4 +1,4 @@
-//! MySQL / MariaDB syntax (also used by the built-in sample engine).
+//! MySQL / MariaDB syntax.
 
 use super::dialect::{create_table_head, default_expr, Dialect, SqlTemplates, TableChange};
 use super::diff::{diff, ColumnDiff};

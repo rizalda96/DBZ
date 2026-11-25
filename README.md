@@ -4,7 +4,7 @@ A desktop database manager written in Rust with [eframe/egui](https://github.com
 
 ## Features
 
-- Connections to **MySQL**, **MariaDB** and **PostgreSQL**, plus a built-in **sample database** to try things out
+- Connections to **MySQL**, **MariaDB** and **PostgreSQL**
 - Connection tree: connections › databases › tables, views, functions, saved queries, backups
 - Object list with rows, size, engine, dates and comments; information pane with General / DDL views
 - **Table data** grid: edit cells, add/delete records, set NULL, filter (WHERE), sort, paging, apply/discard changes

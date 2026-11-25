@@ -1,6 +1,6 @@
 # DBZ
 
-Desktop database manager (MySQL, MariaDB, PostgreSQL, sample DB) dengan Rust + eframe/egui. Lihat `README.md`.
+Desktop database manager (MySQL, MariaDB, PostgreSQL) dengan Rust + eframe/egui. Lihat `README.md`.
 
 ## Perintah
 
@@ -13,7 +13,7 @@ cargo clippy -- -W clippy::too_many_lines -W clippy::too_many_arguments -W clipp
 
 ## Struktur singkat
 
-`domain` → `sql` (Dialect) → `db` (Driver, sample engine) → `transfer` (Exporter) → `worker` → `app` ↔ `ui`.
+`domain` → `sql` (Dialect) → `db` (Driver) → `transfer` (Exporter) → `worker` → `app` ↔ `ui`.
 Detail di `.claude/rules/01-architecture-modular-monolith.md`.
 
 ## Aturan

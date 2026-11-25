@@ -2,7 +2,6 @@
 
 use super::mysql::MySqlDriver;
 use super::postgres::PgDriver;
-use super::sample::{SampleDriver, SharedSample};
 use super::DbError;
 use crate::domain::{Cell, ConnConfig, DbKind, FieldDef, IndexChoices, ResultSet, RoutineInfo, Row, TableInfo, TableParts};
 use crate::sql::Dialect;
@@ -51,9 +50,8 @@ pub trait Driver: Send {
 }
 
 /// Opens a connection for `cfg`. This is the only place that chooses a driver.
-pub fn open_driver(cfg: &ConnConfig, sample: &SharedSample) -> Result<Box<dyn Driver>, DbError> {
+pub fn open_driver(cfg: &ConnConfig) -> Result<Box<dyn Driver>, DbError> {
     match cfg.kind {
-        DbKind::Sample => Ok(Box::new(SampleDriver::new(sample.clone()))),
         DbKind::MySql | DbKind::MariaDb => Ok(Box::new(MySqlDriver::connect(cfg)?)),
         DbKind::PostgreSql => Ok(Box::new(PgDriver::connect(cfg)?)),
     }

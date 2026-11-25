@@ -101,14 +101,6 @@ impl Dbz {
             let mut old: Vec<DbState> = std::mem::take(&mut c.dbs);
             c.dbs = list.into_iter().map(|n| old.iter().position(|d| d.name == n).map(|i| old.remove(i)).unwrap_or_else(|| DbState::new(n))).collect();
         }
-        let Some((acid, db, table)) = self.auto_open.clone().filter(|a| a.0 == cid) else { return };
-        self.auto_open = None;
-        if self.ws.conn(acid).and_then(|c| c.db(&db)).is_some() {
-            self.open_db(acid, db);
-            if table.is_some() {
-                self.ws.sel.obj = table;
-            }
-        }
     }
 
     fn tables(&mut self, cid: u64, db: &str, r: Result<Vec<TableInfo>, DbError>) {

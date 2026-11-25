@@ -6,7 +6,7 @@
 |---|---|---|---|
 | Entry point | `main.rs` | parse CLI, konfigurasi window | logika bisnis, UI |
 | Data/domain | `domain/` | struct/enum data, validasi murni | egui, driver DB, I/O |
-| Akses database | `db/` | koneksi, query, introspeksi, engine sample | egui, teks SQL selain via `Dialect` |
+| Akses database | `db/` | koneksi, query, introspeksi | egui, teks SQL selain via `Dialect` |
 | Pembuatan SQL | `sql/` | quoting, DDL, split, beautify | I/O, koneksi |
 | Import/export | `transfer/` | baca/tulis file per format | widget UI |
 | Background | `worker/` | thread per koneksi, `Req` → `Resp` | state app, egui selain `request_repaint` |

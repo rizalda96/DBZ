@@ -7,7 +7,7 @@ use std::fmt;
 pub enum DbError {
     /// Could not reach or log in to the server.
     Connect(String),
-    /// The server (or sample engine) rejected a statement.
+    /// The server rejected a statement.
     Query(String),
     /// Reading or writing a file failed.
     Io(String),
@@ -16,10 +16,6 @@ pub enum DbError {
 }
 
 impl DbError {
-    pub fn query(msg: impl Into<String>) -> Self {
-        DbError::Query(msg.into())
-    }
-
     pub fn message(&self) -> &str {
         match self {
             DbError::Connect(m) | DbError::Query(m) | DbError::Io(m) | DbError::Invalid(m) => m,

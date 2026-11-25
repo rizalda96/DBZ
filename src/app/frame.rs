@@ -3,6 +3,7 @@
 use eframe::egui::{self, Stroke, Ui};
 
 use super::{Act, Dbz, Tab};
+use crate::ui::splash::{show_splash, splash_frame};
 use crate::ui::theme::{self, pal};
 use crate::ui::{dialogs, panes, views};
 
@@ -24,10 +25,25 @@ impl eframe::App for Dbz {
         }
         self.layout(ui, &mut acts);
         dialogs::show(&ctx, &mut self.dialogs, &self.ws, &mut acts);
+        self.splash_step(&ctx);
         for a in acts {
             self.do_act(a);
         }
         self.screenshot_step(&ctx);
+    }
+}
+
+impl Dbz {
+    /// Draws the splash over the app while it lasts; the app loads underneath.
+    fn splash_step(&mut self, ctx: &egui::Context) {
+        let Some(frame) = self.splash.and_then(|start| splash_frame(start.elapsed())) else {
+            self.splash = None;
+            return;
+        };
+        if show_splash(ctx, frame) {
+            self.splash = None;
+        }
+        ctx.request_repaint();
     }
 }
 

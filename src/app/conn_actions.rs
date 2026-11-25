@@ -27,13 +27,13 @@ impl Dbz {
     }
 
     pub(super) fn open_conn(&mut self, cid: u64) {
-        let (sample, reply) = (self.rt.sample.clone(), self.rt.reply.clone());
+        let reply = self.rt.reply.clone();
         let Some(c) = self.ws.conn_mut(cid) else { return };
         c.expanded = true;
         if c.is_open() {
             return;
         }
-        let tx = worker::spawn(c.cfg.clone(), sample, reply);
+        let tx = worker::spawn(c.cfg.clone(), reply);
         // A fresh channel cannot be closed yet, so these sends cannot fail.
         let _ = tx.send(Req::Connect);
         let _ = tx.send(Req::Databases);
@@ -111,7 +111,7 @@ impl Dbz {
         self.ids.next_tab += 1;
         let id = u64::MAX - self.ids.next_tab;
         cfg.id = id;
-        let tx = worker::spawn(cfg, self.rt.sample.clone(), self.rt.reply.clone());
+        let tx = worker::spawn(cfg, self.rt.reply.clone());
         // A fresh channel cannot be closed yet.
         let _ = tx.send(Req::Connect);
         if let Some(d) = &mut self.dialogs.conn {
@@ -128,7 +128,7 @@ impl Dbz {
 
     pub(super) fn save_conn(&mut self, editing: Option<u64>, mut cfg: ConnConfig) {
         if cfg.name.trim().is_empty() {
-            cfg.name = if cfg.kind.is_builtin() { "Sample Data".into() } else { format!("{}@{}", cfg.user, cfg.host) };
+            cfg.name = format!("{}@{}", cfg.user, cfg.host);
         }
         match editing {
             Some(id) => self.replace_conn(id, cfg),

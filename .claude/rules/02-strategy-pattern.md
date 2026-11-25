@@ -8,7 +8,7 @@ yang tersebar di banyak fungsi.
 
 | Variasi | Trait (strategy) | Implementasi | Factory (satu-satunya `match`) |
 |---|---|---|---|
-| Koneksi & query database | `db::Driver` | `MySqlDriver`, `PgDriver`, `SampleDriver` | `db::open_driver(cfg, sample)` |
+| Koneksi & query database | `db::Driver` | `MySqlDriver`, `PgDriver` | `db::open_driver(cfg)` |
 | Sintaks SQL | `sql::Dialect` | `MySqlDialect`, `PgDialect` | `sql::dialect_for(kind)` |
 | Format export | `transfer::Exporter` | `DelimitedExporter` (CSV/TSV), `JsonExporter`, `SqlExporter`, `HtmlExporter` | `ExportFormat::exporter()` |
 
@@ -21,7 +21,6 @@ Buat trait itu saat format import kedua benar-benar ditambahkan.
 - Dilarang menambah `DbKind::is_pg()` atau cabang `if kind == PostgreSql` untuk **sintaks SQL** — tambahkan method di `Dialect`.
 - Perbedaan **tampilan** per jenis (warna ikon, label "Owner"/"Engine") boleh `match DbKind` di satu tempat di `ui`
   (`ui::theme::kind_color`, `ui::panes::info`), bukan di `Dialect`.
-- `DbKind::is_builtin()` adalah fakta domain (sample engine), bukan dialek.
 
 ## Bentuk trait
 

@@ -55,17 +55,15 @@ pub(super) fn new_db(ctx: &egui::Context, (cid, kind): (u64, DbKind), name: &mut
             ui.label("Database Name:");
             ui.add(egui::TextEdit::singleline(name).desired_width(240.0));
             ui.end_row();
-            if !kind.is_builtin() {
-                ui.label(charset_label);
-                ui.add(egui::TextEdit::singleline(charset).desired_width(240.0));
-                ui.end_row();
-            }
+            ui.label(charset_label);
+            ui.add(egui::TextEdit::singleline(charset).desired_width(240.0));
+            ui.end_row();
         });
         choice = buttons(ui, "OK", !name.trim().is_empty());
     });
     if choice == Choice::Ok {
-        // The sample engine has no character sets; quotes, semicolons and spaces are never valid in one.
-        let cs = if kind.is_builtin() { String::new() } else { charset.trim().replace(['\'', ';', ' '], "") };
+        // Quotes, semicolons and spaces are never valid in a character set name.
+        let cs = charset.trim().replace(['\'', ';', ' '], "");
         let sql = dialect_for(kind).create_database(name.trim(), &cs);
         acts.push(Act::Send(cid, Req::Exec { tab: 0, db: String::new(), stmts: vec![sql], purpose: Purpose::Other("database".into()) }));
     }
@@ -110,7 +108,7 @@ pub(super) fn about(ctx: &egui::Context) -> Choice {
             });
         });
         ui.add_space(6.0);
-        ui.label("Connects to MySQL, MariaDB and PostgreSQL, and includes a built-in sample database to try things out.");
+        ui.label("Connects to MySQL, MariaDB and PostgreSQL.");
         ui.add_space(8.0);
         if ui.button("   OK   ").clicked() {
             choice = Choice::Ok;

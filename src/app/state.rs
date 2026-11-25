@@ -199,7 +199,7 @@ impl Workspace {
     }
 
     pub fn kind_of(&self, cid: u64) -> DbKind {
-        self.conn(cid).map(|c| c.cfg.kind).unwrap_or(DbKind::Sample)
+        self.conn(cid).map(|c| c.cfg.kind).unwrap_or(DbKind::MySql)
     }
 
     pub fn dialect_of(&self, cid: u64) -> &'static dyn Dialect {

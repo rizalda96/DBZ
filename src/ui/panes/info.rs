@@ -92,13 +92,9 @@ fn connection(ui: &mut Ui, c: &ConnState) {
         ConnStatus::Failed(e) => format!("Failed: {}", e),
     };
     prop(ui, "Status", &status);
-    if c.cfg.kind.is_builtin() {
-        prop(ui, "Location", "Built into this app (changes last until you close it)");
-    } else {
-        prop(ui, "Host", &c.cfg.host);
-        prop(ui, "Port", &c.cfg.port.to_string());
-        prop(ui, "User Name", &c.cfg.user);
-    }
+    prop(ui, "Host", &c.cfg.host);
+    prop(ui, "Port", &c.cfg.port.to_string());
+    prop(ui, "User Name", &c.cfg.user);
     prop(ui, "Server Version", &c.version);
     prop(ui, "Databases", &if c.is_open() { c.dbs.len().to_string() } else { String::new() });
 }

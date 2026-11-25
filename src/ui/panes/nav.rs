@@ -69,9 +69,6 @@ fn conn_branch(ui: &mut Ui, ws: &Workspace, c: &ConnState, filter: &str, acts: &
 }
 
 fn conn_tooltip(c: &ConnState) -> String {
-    if c.cfg.kind.is_builtin() {
-        return "Built-in sample database".to_string();
-    }
     format!("{} — {}:{} — user {}", c.cfg.kind.label(), c.cfg.host, c.cfg.port, c.cfg.user)
 }
 

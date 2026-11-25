@@ -25,12 +25,11 @@ pub use tabs::Tab;
 
 use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use eframe::egui;
 
-use crate::db::{sample_server, SharedSample};
-use crate::domain::{ConnConfig, DbKind};
+use crate::domain::ConnConfig;
 use crate::ui::style::setup_style;
 use crate::worker::{Reply, ReplyTo, Req};
 use persistence::{Settings, Store};
@@ -40,7 +39,6 @@ use screenshot::Screenshot;
 struct Runtime {
     reply: ReplyTo,
     rx: Receiver<Reply>,
-    sample: SharedSample,
     /// The worker of a running "Test Connection".
     test_tx: Option<(u64, Sender<Req>)>,
 }
@@ -62,8 +60,8 @@ pub struct Dbz {
     status: String,
     ids: Ids,
     shot: Option<Screenshot>,
-    /// Database (and table) to open once a connection lists its databases.
-    auto_open: Option<(u64, String, Option<String>)>,
+    /// When the splash screen started; None once it is gone (and in screenshot runs).
+    splash: Option<Instant>,
 }
 
 impl Dbz {
@@ -72,30 +70,21 @@ impl Dbz {
         let store = Store::new(screenshot.is_none());
         let settings = if screenshot.is_some() { Settings::from_env() } else { store.load_settings() };
         setup_style(&cc.egui_ctx, settings.theme);
-        let mut cfgs = store.load_connections();
-        if cfgs.is_empty() {
-            cfgs.push(ConnConfig::sample(1));
-        }
+        let cfgs: Vec<ConnConfig> = store.load_connections();
         let next_conn = cfgs.iter().map(|c| c.id).max().unwrap_or(0) + 1;
-        let sample_id = cfgs.iter().find(|c| c.kind == DbKind::Sample).map(|c| c.id);
         let (tx, rx) = std::sync::mpsc::channel();
-        let mut app = Dbz {
+        Dbz {
             ws: Workspace { conns: cfgs.into_iter().map(ConnState::new).collect(), sel: Sel::default(), tabs: vec![], active: 0, mode: ObjMode::Tables, ddl_cache: HashMap::new() },
             panes: PaneState::default(),
             dialogs: DialogState::default(),
-            rt: Runtime { reply: ReplyTo { tx, ctx: cc.egui_ctx.clone() }, rx, sample: Arc::new(Mutex::new(sample_server())), test_tx: None },
+            rt: Runtime { reply: ReplyTo { tx, ctx: cc.egui_ctx.clone() }, rx, test_tx: None },
             store,
             settings,
             status: "Ready".into(),
             ids: Ids { next_conn, next_tab: 1, query_counter: 0 },
+            splash: screenshot.is_none().then(Instant::now),
             shot: screenshot.map(Screenshot::new),
-            auto_open: None,
-        };
-        if let Some(id) = sample_id {
-            app.auto_open = Some((id, "shop".into(), Some("customers".into())));
-            app.do_act(Act::OpenConn(id));
         }
-        app
     }
 
     fn ctx(&self) -> &egui::Context {

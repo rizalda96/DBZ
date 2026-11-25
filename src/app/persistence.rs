@@ -45,7 +45,7 @@ impl Store {
     }
 
     pub fn load_connections(&self) -> Vec<ConnConfig> {
-        self.read_json(CONNECTIONS_FILE).unwrap_or_default()
+        self.read_json::<Vec<serde_json::Value>>(CONNECTIONS_FILE).map(known_connections).unwrap_or_default()
     }
 
     pub fn save_settings(&self, s: &Settings) -> Result<(), String> {
@@ -88,6 +88,13 @@ impl Store {
     }
 }
 
+/// Saved connections this version can read. Entries of a kind that no longer exists
+/// (the removed built-in "Sample" database) are skipped one by one, so they don't take
+/// the user's other connections down with them.
+fn known_connections(entries: Vec<serde_json::Value>) -> Vec<ConnConfig> {
+    entries.into_iter().filter_map(|v| serde_json::from_value(v).ok()).collect()
+}
+
 fn saved_file(e: &std::fs::DirEntry, preview: bool) -> SavedFile {
     let path = e.path();
     let meta = e.metadata().ok();
@@ -99,4 +106,19 @@ fn saved_file(e: &std::fs::DirEntry, preview: bool) -> SavedFile {
         .unwrap_or_default();
     let preview = if preview { std::fs::read_to_string(&path).map(|t| t.chars().take(PREVIEW_CHARS).collect()).unwrap_or_default() } else { String::new() };
     SavedFile { name: path.file_stem().unwrap_or_default().to_string_lossy().to_string(), size: meta.map(|m| m.len()).unwrap_or(0), modified, path, preview }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::known_connections;
+
+    #[test]
+    fn old_sample_entries_are_skipped_and_the_rest_kept() {
+        let saved = r#"[
+            {"id": 1, "name": "Sample Data", "kind": "Sample", "host": "built-in", "port": 0, "user": "sample"},
+            {"id": 2, "name": "Local", "kind": "PostgreSql", "host": "localhost", "port": 5432, "user": "postgres"}
+        ]"#;
+        let cfgs = known_connections(serde_json::from_str(saved).expect("valid JSON"));
+        assert_eq!(cfgs.iter().map(|c| (c.id, c.name.as_str())).collect::<Vec<_>>(), [(2, "Local")]);
+    }
 }

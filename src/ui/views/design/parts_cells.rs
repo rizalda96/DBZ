@@ -1,11 +1,11 @@
 //! How one cell of the designer's parts grid draws: plain text until clicked, then a
 //! text box (with a drop-down arrow for picked values); fixed lists drop down at once.
 
-use eframe::egui::{self, pos2, vec2, Rect, RichText, Sense, Stroke, Ui, UiBuilder};
+use eframe::egui::{self, pos2, vec2, Rect, Sense, Stroke, Ui, UiBuilder};
 
 use super::parts_grid::Cell;
 use crate::ui::theme::pal;
-use crate::ui::widgets::{arrow, cell_text, Arrow};
+use crate::ui::widgets::{arrow, cell_text, forget_search, search_list, Arrow};
 
 pub(super) type CellKey = (((&'static str, u64), usize), usize);
 
@@ -42,8 +42,6 @@ pub(super) struct CellState {
 }
 
 const ARROW_W: f32 = 20.0;
-/// How a drop-down lists its empty choice (clears the value).
-const NONE_LABEL: &str = "(none)";
 
 pub(super) fn draw_cell(ui: &mut Ui, key: CellKey, cell: Cell, st: CellState) -> Hit {
     match cell {
@@ -87,8 +85,20 @@ fn dropdown<'o>(ui: &mut Ui, key: CellKey, value: &mut String, options: impl Ite
     if active || resp.hovered() {
         arrow_mark(ui, arrow_rect(cell), resp.hovered());
     }
-    let picked = egui::Popup::menu(&resp).anchor(cell).width(cell.width()).show(|ui| option_list(ui, value, options)).is_some_and(|r| r.inner);
-    Hit { touched: resp.clicked() || picked, activate: resp.clicked().then_some(key.1), done: picked, opened: None }
+    let search = resp.id.with("search");
+    let popup = egui::Popup::menu(&resp).anchor(cell).width(cell.width()).close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside);
+    let picked = match popup.show(|ui| search_list(ui, search, value, options)) {
+        Some(shown) => shown.inner,
+        None => {
+            forget_search(ui, search);
+            None
+        }
+    };
+    let done = picked.is_some();
+    if let Some(p) = picked {
+        *value = p;
+    }
+    Hit { touched: resp.clicked() || done, activate: resp.clicked().then_some(key.1), done, opened: None }
 }
 
 fn arrow_rect(cell: Rect) -> Rect {
@@ -103,25 +113,6 @@ fn arrow_mark(ui: &Ui, rect: Rect, hovered: bool) {
     arrow(p, rect.center(), 4.0, Arrow::Down, pal().text);
 }
 
-/// The drop-down's entries; true when one was picked.
-fn option_list<'o>(ui: &mut Ui, value: &mut String, options: impl Iterator<Item = &'o str>) -> bool {
-    let mut picked = false;
-    let mut any = false;
-    egui::ScrollArea::vertical().max_height(240.0).show(ui, |ui| {
-        for o in options {
-            any = true;
-            let label = if o.is_empty() { RichText::new(NONE_LABEL).color(pal().muted) } else { RichText::new(o) };
-            if ui.selectable_label(value.as_str() == o, label).clicked() {
-                *value = o.to_string();
-                picked = true;
-            }
-        }
-    });
-    if !any {
-        ui.label(RichText::new("Nothing to pick").color(pal().muted));
-    }
-    picked
-}
 
 /// Read-only text; the selected row also shows a "…" button that opens the editor.
 fn editor(ui: &mut Ui, text: &str, selected: bool) -> Hit {

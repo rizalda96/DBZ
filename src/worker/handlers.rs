@@ -111,7 +111,7 @@ fn fetch_page(d: &mut dyn Driver, db: &str, table: &str, sql: &str, count_sql: &
 
 /// Runs statements in order; grid saves of several rows run in one transaction.
 fn exec(d: &mut dyn Driver, db: &str, stmts: &[String], purpose: &Purpose) -> Result<u64, DbError> {
-    // Servers without transactions (the sample engine) reject BEGIN/COMMIT/ROLLBACK.
+    // A server may reject BEGIN/COMMIT/ROLLBACK (e.g. tables without transactions).
     // That must not block the save, so those replies are deliberately ignored and the
     // statements' own results decide success.
     let transactional = *purpose == Purpose::SaveData && stmts.len() > 1;

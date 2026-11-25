@@ -1,14 +1,10 @@
-//! `--screenshot out.png`: renders a few frames, optionally opens a screen
-//! (DBZ_SHOT_VIEW=data|query|design), saves a picture of the window and exits.
+//! `--screenshot out.png`: renders a few frames, saves a picture of the window and exits.
 
 use eframe::egui;
 
-use super::{Act, Dbz, ObjRef, Tab};
-use crate::worker::Req;
+use super::Dbz;
 
-const OPEN_VIEW_FRAME: u32 = 20;
 const CAPTURE_FRAME: u32 = 120;
-const DEMO_SQL: &str = "-- Orders per status\nSELECT id, customer_id, ordered_at, status, total\nFROM orders\nWHERE total > 50\nORDER BY total DESC\nLIMIT 20;";
 
 pub struct Screenshot {
     path: String,
@@ -27,29 +23,9 @@ impl Dbz {
         let Some(shot) = &mut self.shot else { return };
         shot.frames += 1;
         ctx.request_repaint();
-        let frames = shot.frames;
-        if frames >= CAPTURE_FRAME && !shot.sent {
+        if shot.frames >= CAPTURE_FRAME && !shot.sent {
             shot.sent = true;
             capture(ctx, shot.path.clone());
-        }
-        if frames == OPEN_VIEW_FRAME {
-            self.open_shot_view();
-        }
-    }
-
-    fn open_shot_view(&mut self) {
-        let cid = self.ws.conns.first().map(|c| c.cfg.id).unwrap_or(1);
-        match std::env::var("DBZ_SHOT_VIEW").unwrap_or_default().as_str() {
-            "data" => self.do_act(Act::OpenTable(ObjRef::new(cid, "shop", "customers"), false)),
-            "design" => self.do_act(Act::DesignTable(cid, "shop".into(), Some("orders".into()))),
-            "query" => {
-                self.do_act(Act::NewQuery(cid, "shop".into(), DEMO_SQL.into()));
-                let Some(Tab::Query(q)) = self.ws.tabs.last_mut() else { return };
-                q.running = true;
-                let id = q.id;
-                self.do_act(Act::Send(cid, Req::Query { tab: id, db: "shop".into(), sql: DEMO_SQL.into() }));
-            }
-            _ => {}
         }
     }
 }

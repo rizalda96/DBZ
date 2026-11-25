@@ -13,8 +13,7 @@ src/
   shared/              # helper global murni: fmt_time, now_string, fmt_bytes, sanitize, data_dir — tanpa egui
   sql/                 # pembuatan teks SQL: trait Dialect + MySqlDialect/PgDialect, diff tabel,
                        #   split_statements, beautify, insert_row/eq_condition
-  db/                  # akses database: trait Driver + MySqlDriver/PgDriver/SampleDriver, DbError
-    sample/            #   engine in-memory "Sample Data" (tokenizer, parser, select, dml, ddl, seed)
+  db/                  # akses database: trait Driver + MySqlDriver/PgDriver, DbError
   transfer/            # export/import/dump/run_file ke & dari file; trait Exporter per format
   worker/              # thread per koneksi: protocol (Req/Resp/Purpose) + handler
   app/                 # orkestrasi: state (Workspace), Act → handler, balasan worker, persistence

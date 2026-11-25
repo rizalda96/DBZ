@@ -11,18 +11,16 @@ pub enum DbKind {
     MySql,
     MariaDb,
     PostgreSql,
-    Sample,
 }
 
 impl DbKind {
-    pub const ALL: [DbKind; 4] = [DbKind::MySql, DbKind::MariaDb, DbKind::PostgreSql, DbKind::Sample];
+    pub const ALL: [DbKind; 3] = [DbKind::MySql, DbKind::MariaDb, DbKind::PostgreSql];
 
     pub fn label(self) -> &'static str {
         match self {
             DbKind::MySql => "MySQL",
             DbKind::MariaDb => "MariaDB",
             DbKind::PostgreSql => "PostgreSQL",
-            DbKind::Sample => "Sample Data (built-in)",
         }
     }
 
@@ -30,7 +28,6 @@ impl DbKind {
         match self {
             DbKind::MySql | DbKind::MariaDb => 3306,
             DbKind::PostgreSql => 5432,
-            DbKind::Sample => 0,
         }
     }
 
@@ -38,13 +35,7 @@ impl DbKind {
         match self {
             DbKind::MySql | DbKind::MariaDb => "root",
             DbKind::PostgreSql => "postgres",
-            DbKind::Sample => "",
         }
-    }
-
-    /// The in-memory sample database that ships with the app.
-    pub fn is_builtin(self) -> bool {
-        self == DbKind::Sample
     }
 }
 
@@ -71,27 +62,8 @@ fn yes() -> bool {
 }
 
 impl ConnConfig {
-    /// The built-in sample connection.
-    pub fn sample(id: u64) -> Self {
-        ConnConfig {
-            id,
-            name: "Sample Data".into(),
-            kind: DbKind::Sample,
-            host: "built-in".into(),
-            port: 0,
-            user: "sample".into(),
-            password: String::new(),
-            save_password: true,
-            initial_db: String::new(),
-            connect_timeout: 0,
-        }
-    }
-
     /// A blank connection of `kind` with that server's usual defaults.
     pub fn blank(id: u64, kind: DbKind) -> Self {
-        if kind.is_builtin() {
-            return ConnConfig::sample(id);
-        }
         ConnConfig {
             id,
             name: String::new(),

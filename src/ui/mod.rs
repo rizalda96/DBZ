@@ -5,6 +5,7 @@
 pub mod dialogs;
 pub mod icons;
 pub mod panes;
+pub mod splash;
 pub mod style;
 pub mod theme;
 pub mod views;

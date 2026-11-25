@@ -29,6 +29,7 @@ fn screenshot_arg(args: &[String]) -> Option<String> {
 
 fn native_options(screenshot: bool) -> eframe::NativeOptions {
     let icon = eframe::icon_data::from_png_bytes(ui::icons::LOGO_PNG).expect("bundled logo is a valid PNG");
+    // Opens maximized; the inner size is what "Restore Down" goes back to.
     let mut viewport = egui::ViewportBuilder::default().with_title("DBZ").with_icon(icon).with_inner_size([1366.0, 820.0]).with_min_inner_size([900.0, 560.0]);
     if screenshot {
         viewport = viewport.with_active(false);
@@ -36,6 +37,9 @@ fn native_options(screenshot: bool) -> eframe::NativeOptions {
         {
             viewport = viewport.with_window_level(egui::WindowLevel::AlwaysOnBottom);
         }
+    } else {
+        // Screenshot runs keep the fixed size so pictures come out the same.
+        viewport = viewport.with_maximized(true);
     }
     #[allow(unused_mut)] // only changed on macOS
     let mut options = eframe::NativeOptions { viewport, persist_window: false, ..Default::default() };

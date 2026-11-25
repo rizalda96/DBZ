@@ -21,12 +21,13 @@ Sebelum menulis fungsi, widget, atau helper baru:
 | `ObjectTable { headers, rows }.show(ui, id, row, on)` + `ObjRow`, `RowEv` | daftar objek di tab Objects |
 | `tree_row(ui, TreeItem { .. })` | baris pohon koneksi |
 | `header_cell(ui)`, `cell_lines(ui, rect)`, `cell_text(ui, cell, color)`, `col_width(..)`, `arrow(p, c, r, Arrow, color)` | bagian grid |
+| `search_list(ui, id, current, options)`, `forget_search(ui, id)` | isi dropdown yang bisa dicari (pakai di `Popup`/`ComboBox` dengan `CloseOnClickOutside`) |
 | `sql_layouter` | pewarnaan sintaks SQL untuk `TextEdit::layouter` |
 
 ### UI — lainnya
 | Fungsi | File | Kegunaan |
 |---|---|---|
-| `icons::paint(painter, rect, Icon)`, `icons::logo(ui, size)` | `ui/icons.rs` | semua ikon — jangan gambar ikon ad-hoc |
+| `icons::paint(painter, rect, Icon)`, `icons::logo(ui, size)`, `icons::logo_texture(ctx)` | `ui/icons.rs` | semua ikon — jangan gambar ikon ad-hoc |
 | `theme::pal()`, `theme::veil(c)`, `theme::kind_color(kind)` | `ui/theme.rs` | **semua warna** UI wajib dari sini |
 | `win(title)`, `buttons(ui, ok, enabled) -> Choice`, `file_row(..)` | `ui/widgets/dialog.rs` | kerangka dialog (juga dipakai window editor di designer) |
 
@@ -49,7 +50,7 @@ Sebelum menulis fungsi, widget, atau helper baru:
 | `TableParts::loaded`, trait `Part` | `domain/table_parts.rs` | index/FK/unique/check/trigger/opsi tabel + nama asal untuk diff |
 | `Driver::table_parts` | `db/driver.rs` | baca index/FK/unique/check/trigger/opsi dari server |
 | `Driver::index_choices`, `IndexChoices::{collations_in, opclasses_for}` | `db/driver.rs`, `domain/index_choices.rs` | daftar schema, collation, operator class untuk dropdown index |
-| `ConnConfig::sample`, `blank`, `timeout`, `for_storage` | `domain/connection.rs` | konfigurasi koneksi |
+| `ConnConfig::blank`, `timeout`, `for_storage` | `domain/connection.rs` | konfigurasi koneksi |
 | `parse_csv`, `ExportFormat::exporter()` | `transfer/` | import/export |
 | `fmt_time`, `now_string`, `fmt_bytes`, `sanitize`, `default_dir`, `data_dir` | `shared/` | helper umum |
 | `Store::folder`, `Store::list_sql_files` | `app/persistence.rs` | folder query/backup tersimpan |

@@ -186,7 +186,6 @@ pub fn kind_color(kind: DbKind) -> Color32 {
         DbKind::MySql => rgb(0x2b, 0x7a, 0xb8),
         DbKind::MariaDb => rgb(0x9a, 0x6a, 0x3a),
         DbKind::PostgreSql => rgb(0x33, 0x5d, 0x8f),
-        DbKind::Sample => rgb(0x3c, 0x9a, 0x5c),
     }
 }
 

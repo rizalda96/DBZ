@@ -7,10 +7,6 @@ mod mysql;
 mod mysql_parts;
 mod postgres;
 mod postgres_parts;
-mod sample;
 
 pub use driver::{open_driver, Driver};
 pub use error::DbError;
-pub use sample::{sample_server, SharedSample};
-#[cfg(test)]
-pub use sample::SampleServer;

@@ -31,7 +31,7 @@ pub(super) fn show(ctx: &egui::Context, d: &mut ConnDialog, acts: &mut Vec<Act>)
                 advanced_page(ui, &mut d.cfg);
             }
         });
-        if !d.cfg.save_password && !d.cfg.kind.is_builtin() {
+        if !d.cfg.save_password {
             ui.label(RichText::new("It will be kept only until the app closes.").color(pal().muted).size(12.0));
         }
         ui.add_space(8.0);
@@ -63,13 +63,6 @@ fn general_page(ui: &mut Ui, cfg: &mut ConnConfig) {
     });
     change_kind(cfg, kind);
     ui.end_row();
-    if cfg.kind.is_builtin() {
-        ui.label("");
-        let note = "A small database built into the app, with shop and analytics sample tables. Changes last until the app closes.";
-        ui.add(egui::Label::new(RichText::new(note).color(pal().muted)).wrap());
-        ui.end_row();
-        return;
-    }
     server_fields(ui, cfg);
 }
 
@@ -81,10 +74,10 @@ fn change_kind(cfg: &mut ConnConfig, kind: DbKind) {
     if cfg.port == cfg.kind.default_port() || cfg.port == 0 {
         cfg.port = kind.default_port();
     }
-    if cfg.user.is_empty() || cfg.user == cfg.kind.default_user() || cfg.user == "sample" {
+    if cfg.user.is_empty() || cfg.user == cfg.kind.default_user() {
         cfg.user = kind.default_user().into();
     }
-    if !kind.is_builtin() && (cfg.host.is_empty() || cfg.host == "built-in") {
+    if cfg.host.is_empty() {
         cfg.host = "localhost".into();
     }
     cfg.kind = kind;

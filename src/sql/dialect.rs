@@ -76,11 +76,11 @@ pub trait Dialect: Sync {
 static MYSQL: MySqlDialect = MySqlDialect;
 static POSTGRES: PgDialect = PgDialect;
 
-/// The one place that picks a dialect for a server kind. The sample engine speaks MySQL.
+/// The one place that picks a dialect for a server kind.
 pub fn dialect_for(kind: DbKind) -> &'static dyn Dialect {
     match kind {
         DbKind::PostgreSql => &POSTGRES,
-        DbKind::MySql | DbKind::MariaDb | DbKind::Sample => &MYSQL,
+        DbKind::MySql | DbKind::MariaDb => &MYSQL,
     }
 }
 
