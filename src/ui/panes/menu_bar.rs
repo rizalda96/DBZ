@@ -2,6 +2,7 @@
 
 use eframe::egui::{self, Ui};
 
+use super::object_menus::archive_items;
 use crate::app::{Act, ObjMode, ObjRef, PaneState, Workspace};
 use crate::domain::DbKind;
 use crate::ui::theme::ThemePref;
@@ -90,6 +91,10 @@ fn tools_menu(ui: &mut Ui, ws: &Workspace, acts: &mut Vec<Act>) {
     item_if(ui, acts, egui::Button::new("Dump SQL File (Structure + Data)…"), with(&|c, d| Act::Dump(c, d, true)));
     item_if(ui, acts, egui::Button::new("Dump SQL File (Structure Only)…"), with(&|c, d| Act::Dump(c, d, false)));
     item_if(ui, acts, egui::Button::new("Execute SQL File…"), with(&|c, d| Act::RunFile(c, d)));
+    if let Some((cid, db)) = target.clone().filter(|(c, _)| ws.kind_of(*c).archive_tools().is_some()) {
+        ui.separator();
+        archive_items(ui, cid, &db, acts);
+    }
     ui.separator();
     if ui.add_enabled(target.is_some(), egui::Button::new("New Backup")).clicked() {
         acts.extend(with(&|c, d| Act::NewBackup(c, d)));

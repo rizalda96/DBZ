@@ -52,6 +52,8 @@ Sebelum menulis fungsi, widget, atau helper baru:
 | `Driver::index_choices`, `IndexChoices::{collations_in, opclasses_for}` | `db/driver.rs`, `domain/index_choices.rs` | daftar schema, collation, operator class untuk dropdown index |
 | `ConnConfig::blank`, `timeout`, `for_storage` | `domain/connection.rs` | konfigurasi koneksi |
 | `parse_csv`, `ExportFormat::exporter()` | `transfer/` | import/export |
+| `dump_archive`, `restore_archive`, `DbKind::archive_tools()` | `transfer/archive.rs`, `domain/connection.rs` | dump/restore format server sendiri (PostgreSQL `.dump`) lewat `pg_dump`/`pg_restore` |
+| `Req::task_label()` | `worker/protocol.rs` | request yang memunculkan jendela "Please wait" (otomatis lewat `Dbz::send`) |
 | `fmt_time`, `now_string`, `fmt_bytes`, `sanitize`, `default_dir`, `data_dir` | `shared/` | helper umum |
 | `Store::folder`, `Store::list_sql_files` | `app/persistence.rs` | folder query/backup tersimpan |
 

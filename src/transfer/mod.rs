@@ -1,6 +1,7 @@
-//! Moving data between a connection and files: export, import, SQL dumps and running
-//! SQL files. Export formats are [`Exporter`] strategies picked by [`ExportFormat`].
+//! Moving data between a connection and files: export, import, SQL dumps, archive
+//! dumps and restores (through the server's tools) and running SQL files. Export formats are [`Exporter`] strategies picked by [`ExportFormat`].
 
+mod archive;
 mod csv;
 mod dump;
 mod export;
@@ -10,6 +11,7 @@ mod json;
 mod run_file;
 
 pub use self::csv::parse_csv;
+pub use archive::{dump_archive, restore_archive, ArchivePart};
 pub use dump::dump;
 pub use export::{export, ExportFormat, ExportOptions, Exporter};
 pub use import::{import, ImportOptions};

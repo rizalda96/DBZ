@@ -19,7 +19,7 @@ mod tab_actions;
 mod tabs;
 
 pub use actions::{Act, Confirm, FolderRef, ObjRef};
-pub use dialog_state::{ConnDialog, Dialog, DialogState};
+pub use dialog_state::{ConnDialog, Dialog, DialogState, RunningTask};
 pub use state::{ConnState, ConnStatus, DbState, ObjMode, PaneState, Sel, Workspace};
 pub use tabs::Tab;
 

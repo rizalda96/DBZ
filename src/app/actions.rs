@@ -2,6 +2,7 @@
 
 use super::state::{ObjMode, Sel};
 use crate::domain::{ConnConfig, DbKind};
+use crate::transfer::ArchivePart;
 use crate::ui::theme::ThemePref;
 use crate::worker::Req;
 
@@ -76,6 +77,10 @@ pub enum Act {
     Export(ObjRef),
     Import(u64, String, Option<String>),
     Dump(u64, String, bool),
+    /// Dump in the server's own format (PostgreSQL `.dump`).
+    DumpArchive(u64, String, ArchivePart),
+    /// Pick an archive dump and restore it into the database.
+    RestoreArchive(u64, String),
     RunFile(u64, String),
     NewBackup(u64, String),
     RestoreBackup(ObjRef),
@@ -99,6 +104,8 @@ pub enum Confirm {
     DeleteQuery(ObjRef),
     DeleteBackup(ObjRef),
     RestoreBackup(ObjRef),
+    /// (connection, database, archive file).
+    RestoreArchive(u64, String, String),
     DropRoutine(ObjRef, String),
     CloseDirtyTab(usize),
 }

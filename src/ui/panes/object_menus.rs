@@ -3,6 +3,7 @@
 use eframe::egui::Ui;
 
 use crate::app::{Act, ObjMode, ObjRef, Sel};
+use crate::transfer::ArchivePart;
 use crate::ui::widgets::menu_item;
 
 /// What double-clicking an object in `mode` does.
@@ -15,7 +16,17 @@ pub(super) fn open_act(mode: ObjMode, obj: ObjRef, is_view: bool) -> Act {
     }
 }
 
-pub(super) fn db_menu(ui: &mut Ui, cid: u64, db: &str, expanded: bool, acts: &mut Vec<Act>) {
+/// The database a menu is for.
+pub(super) struct DbTarget<'a> {
+    pub cid: u64,
+    pub db: &'a str,
+    pub expanded: bool,
+    /// The server has its own dump format (PostgreSQL `.dump`).
+    pub archives: bool,
+}
+
+pub(super) fn db_menu(ui: &mut Ui, target: DbTarget, acts: &mut Vec<Act>) {
+    let DbTarget { cid, db, expanded, archives } = target;
     let db = db.to_string();
     if expanded {
         menu_item(ui, acts, "Close Database", Act::CloseDb(cid, db.clone()));
@@ -31,10 +42,20 @@ pub(super) fn db_menu(ui: &mut Ui, cid: u64, db: &str, expanded: bool, acts: &mu
     menu_item(ui, acts, "Execute SQL File…", Act::RunFile(cid, db.clone()));
     menu_item(ui, acts, "Dump SQL File (Structure + Data)…", Act::Dump(cid, db.clone(), true));
     menu_item(ui, acts, "Dump SQL File (Structure Only)…", Act::Dump(cid, db.clone(), false));
+    if archives {
+        archive_items(ui, cid, &db, acts);
+    }
     menu_item(ui, acts, "Import Wizard…", Act::Import(cid, db.clone(), None));
     menu_item(ui, acts, "New Backup", Act::NewBackup(cid, db.clone()));
     ui.separator();
     menu_item(ui, acts, "Refresh", Act::RefreshDb(cid, db));
+}
+
+/// Dump and restore in the server's own format (database menu and Tools menu).
+pub(super) fn archive_items(ui: &mut Ui, cid: u64, db: &str, acts: &mut Vec<Act>) {
+    menu_item(ui, acts, "Dump Archive File (Structure + Data)…", Act::DumpArchive(cid, db.to_string(), ArchivePart::StructureAndData));
+    menu_item(ui, acts, "Dump Archive File (Structure Only)…", Act::DumpArchive(cid, db.to_string(), ArchivePart::StructureOnly));
+    menu_item(ui, acts, "Restore Archive File…", Act::RestoreArchive(cid, db.to_string()));
 }
 
 pub(super) fn object_menu(ui: &mut Ui, mode: ObjMode, obj: &ObjRef, acts: &mut Vec<Act>) {

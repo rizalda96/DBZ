@@ -1,5 +1,7 @@
 //! Open dialogs and what the user has typed into them.
 
+use std::time::Instant;
+
 use super::actions::Confirm;
 use crate::domain::ConnConfig;
 use crate::transfer::{ExportOptions, ImportOptions};
@@ -31,15 +33,25 @@ impl ConnDialog {
     }
 }
 
+/// A long file task a worker is running (dump, restore, import, …).
+pub struct RunningTask {
+    pub cid: u64,
+    /// What it is doing, e.g. "Dumping shop to shop.sql…".
+    pub label: String,
+    pub started: Instant,
+}
+
 #[derive(Default)]
 pub struct DialogState {
     pub alert: Option<(String, String)>,
     pub dialog: Option<Dialog>,
     pub conn: Option<ConnDialog>,
+    /// Shown as a "please wait" window until the task's reply arrives.
+    pub task: Option<RunningTask>,
 }
 
 impl DialogState {
     pub fn any_open(&self) -> bool {
-        self.alert.is_some() || self.dialog.is_some() || self.conn.is_some()
+        self.alert.is_some() || self.dialog.is_some() || self.conn.is_some() || self.task.is_some()
     }
 }

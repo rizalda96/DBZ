@@ -47,6 +47,8 @@ impl Dbz {
             Act::Export(obj) => self.export_dialog(obj),
             Act::Import(cid, db, table) => self.import_dialog(cid, db, table),
             Act::Dump(cid, db, data) => self.dump(cid, db, data),
+        Act::DumpArchive(cid, db, part) => self.dump_archive(cid, db, part),
+        Act::RestoreArchive(cid, db) => self.ask_restore_archive(cid, db),
             Act::RunFile(cid, db) => self.dialogs.dialog = Some(Dialog::RunFile { cid, db, path: String::new(), cont: false }),
             Act::NewBackup(cid, db) => self.new_backup(cid, db),
             Act::RestoreBackup(obj) => self.ask_restore_backup(obj),

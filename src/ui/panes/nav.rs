@@ -2,7 +2,7 @@
 
 use eframe::egui::{self, RichText, Ui};
 
-use super::object_menus::{db_menu, object_menu, open_act};
+use super::object_menus::{db_menu, object_menu, open_act, DbTarget};
 use crate::app::{Act, ConnState, ConnStatus, DbState, FolderRef, ObjMode, ObjRef, Sel, Workspace};
 use crate::domain::DbKind;
 use crate::ui::icons::Icon;
@@ -119,7 +119,8 @@ fn db_branch(ui: &mut Ui, cx: &DbCtx, acts: &mut Vec<Act>) {
             acts.push(Act::SetMode(ObjMode::Tables));
         }
     }
-    context_menu(&resp, |ui| db_menu(ui, cid, &d.name, d.expanded, acts));
+    let target = DbTarget { cid, db: &d.name, expanded: d.expanded, archives: cx.ws.kind_of(cid).archive_tools().is_some() };
+    context_menu(&resp, |ui| db_menu(ui, target, acts));
     if !d.expanded {
         return;
     }

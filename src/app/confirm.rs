@@ -29,6 +29,7 @@ impl Dbz {
             Confirm::DeleteQuery(obj) => self.delete_saved("queries", obj),
             Confirm::DeleteBackup(obj) => self.delete_saved("backups", obj),
             Confirm::RestoreBackup(obj) => self.restore_backup(obj),
+            Confirm::RestoreArchive(cid, db, path) => self.send(cid, Req::RestoreArchive { db, path }),
             Confirm::DropRoutine(obj, kind) => {
                 let kw = if kind.eq_ignore_ascii_case("procedure") { "PROCEDURE" } else { "FUNCTION" };
                 let sql = format!("DROP {} {}", kw, self.ws.dialect_of(obj.cid).quote_ident(&obj.name));

@@ -3,7 +3,7 @@
 use super::persistence::Store;
 use super::{Confirm, Dbz, Dialog, ObjRef};
 use crate::shared::{default_dir, now_string, sanitize};
-use crate::transfer::{ExportFormat, ExportOptions, ImportOptions};
+use crate::transfer::{ArchivePart, ExportFormat, ExportOptions, ImportOptions};
 use crate::worker::Req;
 
 impl Dbz {
@@ -24,6 +24,26 @@ impl Dbz {
         let Some(p) = file else { return };
         self.status = format!("Dumping {}…", db);
         self.send(cid, Req::Dump { db, path: p.to_string_lossy().to_string(), data });
+    }
+
+    /// Asks where to save, then dumps the database there in the server's own format.
+    pub(super) fn dump_archive(&mut self, cid: u64, db: String, part: ArchivePart) {
+        let Some(tools) = self.ws.kind_of(cid).archive_tools() else { return };
+        let ext = tools.extension;
+        let file = rfd::FileDialog::new().set_title("Dump Archive File").add_filter("Archive dump", &[ext]).set_file_name(format!("{}.{}", sanitize(&db), ext)).save_file();
+        let Some(p) = file else { return };
+        self.send(cid, Req::DumpArchive { db, path: p.to_string_lossy().to_string(), part });
+    }
+
+    /// Picks an archive dump, then asks before restoring it into `db`.
+    pub(super) fn ask_restore_archive(&mut self, cid: u64, db: String) {
+        let Some(tools) = self.ws.kind_of(cid).archive_tools() else { return };
+        let file = rfd::FileDialog::new().set_title("Restore Archive File").add_filter("Archive dump", &[tools.extension, "backup"]).add_filter("All files", &["*"]).pick_file();
+        let Some(p) = file else { return };
+        let path = p.to_string_lossy().to_string();
+        let name = p.file_name().map(|f| f.to_string_lossy().to_string()).unwrap_or_else(|| path.clone());
+        let msg = format!("Restore \"{}\" into \"{}\"? Its objects are created in this database; ones that already exist are reported as errors and left as they are.", name, db);
+        self.confirm("Restore Archive File", msg, Confirm::RestoreArchive(cid, db, path));
     }
 
     /// Dumps the database (with data) into its backups folder, named by date and time.

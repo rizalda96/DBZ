@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use crate::db::DbError;
 use crate::domain::{FieldDef, IndexChoices, ResultSet, RoutineInfo, TableInfo, TableParts};
-use crate::transfer::{ExportOptions, ImportOptions};
+use crate::transfer::{ArchivePart, ExportOptions, ImportOptions};
 
 /// Rows of one page of a table, plus how it was fetched.
 #[derive(Clone, Debug)]
@@ -37,7 +37,26 @@ pub enum Req {
     Import { db: String, opts: ImportOptions },
     Dump { db: String, path: String, data: bool },
     RunFile { db: String, path: String, continue_on_error: bool },
+    /// The server's own dump format (PostgreSQL `.dump`), through its client tools.
+    DumpArchive { db: String, path: String, part: ArchivePart },
+    RestoreArchive { db: String, path: String },
     Users,
+}
+
+impl Req {
+    /// What a long file task is doing, for the "please wait" window; None for the
+    /// quick requests. Its reply is always a `Resp::Task`.
+    pub fn task_label(&self) -> Option<String> {
+        let file = |p: &str| std::path::Path::new(p).file_name().map(|f| f.to_string_lossy().to_string()).unwrap_or_else(|| p.to_string());
+        Some(match self {
+            Req::Export { opts, .. } => format!("Exporting {} to {}…", opts.table, file(&opts.path)),
+            Req::Import { db, opts } => format!("Importing {} into {}…", file(&opts.path), db),
+            Req::Dump { db, path, .. } | Req::DumpArchive { db, path, .. } => format!("Dumping {} to {}…", db, file(path)),
+            Req::RunFile { db, path, .. } => format!("Running {} on {}…", file(path), db),
+            Req::RestoreArchive { db, path } => format!("Restoring {} into {}…", file(path), db),
+            _ => return None,
+        })
+    }
 }
 
 /// Why statements were sent, so the reply can be routed.

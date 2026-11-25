@@ -7,7 +7,7 @@ mod result;
 mod schema;
 mod table_parts;
 
-pub use connection::{ConnConfig, DbKind};
+pub use connection::{ArchiveTools, ConnConfig, DbKind};
 pub use index_choices::{Collation, IndexChoices, OpClass, SchemaName};
 pub use result::{first_cell, Cell, ResultSet, Row};
 pub use schema::{FieldDef, RoutineInfo, TableInfo};

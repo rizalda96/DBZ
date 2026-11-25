@@ -70,7 +70,15 @@ impl Dbz {
         self.status = format!("Connected to {}", c.cfg.name);
     }
 
+    /// Closes the "please wait" window of a task on `cid`.
+    fn end_task(&mut self, cid: u64) {
+        if self.dialogs.task.as_ref().is_some_and(|t| t.cid == cid) {
+            self.dialogs.task = None;
+        }
+    }
+
     fn connect_failed(&mut self, cid: u64, e: DbError) {
+        self.end_task(cid);
         let msg = e.to_string();
         let name = self.ws.conn(cid).map(|c| c.cfg.name.clone()).unwrap_or_default();
         if let Some(c) = self.ws.conn_mut(cid) {
@@ -264,6 +272,7 @@ impl Dbz {
     }
 
     fn task_done(&mut self, cid: u64, r: Result<String, DbError>) {
+        self.end_task(cid);
         match r {
             Ok(msg) => {
                 self.status = msg.clone();

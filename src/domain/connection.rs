@@ -31,12 +31,30 @@ impl DbKind {
         }
     }
 
+    /// The server's own dump format and the client tools that write and read it;
+    /// None where SQL dumps are all there is.
+    pub fn archive_tools(self) -> Option<ArchiveTools> {
+        match self {
+            DbKind::PostgreSql => Some(ArchiveTools { dump: "pg_dump", restore: "pg_restore", extension: "dump" }),
+            DbKind::MySql | DbKind::MariaDb => None,
+        }
+    }
+
     pub fn default_user(self) -> &'static str {
         match self {
             DbKind::MySql | DbKind::MariaDb => "root",
             DbKind::PostgreSql => "postgres",
         }
     }
+}
+
+/// Programs for a server's archive dumps (e.g. PostgreSQL's custom format).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ArchiveTools {
+    pub dump: &'static str,
+    pub restore: &'static str,
+    /// File extension, without the dot.
+    pub extension: &'static str,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

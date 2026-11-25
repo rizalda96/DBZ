@@ -12,6 +12,10 @@ use crate::ui::widgets::Choice;
 
 /// Draws whichever dialog is open. The alert wins over everything else.
 pub fn show(ctx: &egui::Context, st: &mut DialogState, ws: &Workspace, acts: &mut Vec<Act>) {
+    if let Some(task) = &st.task {
+        simple::progress(ctx, task);
+        return;
+    }
     if let Some((title, msg)) = &st.alert {
         if !simple::alert(ctx, title, msg) {
             st.alert = None;

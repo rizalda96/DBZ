@@ -2,7 +2,7 @@
 
 use eframe::egui::{self, RichText, Ui};
 
-use super::object_menus::{db_menu, object_menu, open_act};
+use super::object_menus::{db_menu, object_menu, open_act, DbTarget};
 use super::objects_toolbar;
 use crate::app::{Act, ConnState, DbState, ObjMode, ObjRef, Sel, Workspace};
 use crate::domain::DbKind;
@@ -117,7 +117,7 @@ fn databases(ui: &mut Ui, c: &ConnState, filter: &str, acts: &mut Vec<Act>) {
     ObjectTable { headers: &["Name", "Tables", "Status"], rows: rows.len() }.show(ui, "dblist", row, |i, e| match e {
         RowEv::Double => open = Some(i),
         RowEv::Click => {}
-        RowEv::Menu(ui) => db_menu(ui, cid, &rows[i].name, rows[i].expanded, acts),
+        RowEv::Menu(ui) => db_menu(ui, DbTarget { cid, db: &rows[i].name, expanded: rows[i].expanded, archives: c.cfg.kind.archive_tools().is_some() }, acts),
     });
     if let Some(i) = open {
         acts.push(Act::OpenDb(cid, rows[i].name.clone()));

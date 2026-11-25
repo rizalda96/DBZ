@@ -1,13 +1,15 @@
-//! Small dialogs: alert, confirm, new database, save query, rename, about.
+//! Small dialogs: alert, please wait, confirm, new database, save query, rename, about.
 
 use eframe::egui::{self, vec2, Color32, FontId, RichText, Sense};
 
-use crate::ui::widgets::{buttons, win, Choice};
-use crate::app::Act;
+use std::time::Duration;
+
+use crate::app::{Act, RunningTask};
 use crate::domain::DbKind;
 use crate::sql::{dialect_for, Dialect};
 use crate::ui::icons;
-use crate::ui::theme::WARNING;
+use crate::ui::theme::{pal, WARNING};
+use crate::ui::widgets::{buttons, win, Choice};
 use crate::worker::{Purpose, Req};
 
 /// Message box with Copy and OK; returns false once closed.
@@ -30,6 +32,37 @@ pub(super) fn alert(ctx: &egui::Context, title: &str, msg: &str) -> bool {
         });
     });
     open
+}
+
+/// "Please wait" over the whole window while a long file task runs, so the user can
+/// see it is still working. It closes when the task's reply arrives.
+pub(super) fn progress(ctx: &egui::Context, task: &RunningTask) {
+    egui::Modal::new(egui::Id::unique("dbz_task")).show(ctx, |ui| {
+        ui.set_min_width(360.0);
+        ui.horizontal(|ui| {
+            ui.add(egui::Spinner::new().size(26.0));
+            ui.add_space(8.0);
+            ui.vertical(|ui| {
+                ui.label(RichText::new("Please wait").strong().size(15.0));
+                ui.add(egui::Label::new(&task.label).wrap());
+            });
+        });
+        ui.add_space(6.0);
+        ui.label(RichText::new(format!("Elapsed {}", fmt_elapsed(task.started.elapsed()))).color(pal().muted));
+    });
+    // Keeps the elapsed time moving while nothing else happens.
+    ctx.request_repaint_after(Duration::from_millis(500));
+}
+
+/// "0:07", "12:30", "1:02:03".
+fn fmt_elapsed(d: Duration) -> String {
+    let s = d.as_secs();
+    let (h, m, s) = (s / 3600, s / 60 % 60, s % 60);
+    if h > 0 {
+        format!("{}:{:02}:{:02}", h, m, s)
+    } else {
+        format!("{}:{:02}", m, s)
+    }
 }
 
 pub(super) fn confirm(ctx: &egui::Context, title: &str, msg: &str) -> Choice {

@@ -54,6 +54,8 @@ pub(super) fn handle(d: &mut dyn Driver, cfg: &ConnConfig, req: Req) -> Resp {
         Req::Import { db, opts } => Resp::Task(transfer::import(d, &db, &opts)),
         Req::Dump { db, path, data } => Resp::Task(transfer::dump(d, cfg, &db, &path, data)),
         Req::RunFile { db, path, continue_on_error } => Resp::Task(transfer::run_file(d, &db, &path, continue_on_error)),
+        Req::DumpArchive { db, path, part } => Resp::Task(transfer::dump_archive(cfg, &db, &path, part)),
+        Req::RestoreArchive { db, path } => Resp::Task(transfer::restore_archive(cfg, &db, &path)),
         Req::Users => Resp::Users(d.users()),
     }
 }

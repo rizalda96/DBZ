@@ -1,16 +1,23 @@
 //! Connections: open/close, edit, test, save, and sending requests to workers.
 
-use super::{ConnDialog, ConnState, ConnStatus, Confirm, Dbz, Sel};
+use std::time::Instant;
+
+use super::{ConnDialog, ConnState, ConnStatus, Confirm, Dbz, RunningTask, Sel};
 use crate::domain::{ConnConfig, DbKind};
 use crate::ui::theme::ThemePref;
 use crate::worker::{self, Req};
 
 impl Dbz {
     /// Sends `req` to the connection's worker, opening the connection if needed.
+    /// Long file tasks show a "please wait" window until their reply arrives.
     pub(super) fn send(&mut self, cid: u64, req: Req) {
         self.ensure_open(cid);
+        let task = req.task_label().map(|label| RunningTask { cid, label, started: Instant::now() });
         let failed = self.ws.conn(cid).and_then(|c| c.tx.as_ref()).is_some_and(|tx| tx.send(req).is_err());
         if !failed {
+            if task.is_some() {
+                self.dialogs.task = task;
+            }
             return;
         }
         if let Some(c) = self.ws.conn_mut(cid) {
