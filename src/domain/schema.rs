@@ -1,5 +1,43 @@
 //! Schema objects: tables, routines and column definitions.
 
+/// What a relation in the object list is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RelationKind {
+    Table,
+    View,
+    /// PostgreSQL.
+    MatView,
+}
+
+impl RelationKind {
+    /// As DROP / ALTER spell it.
+    pub fn keyword(self) -> &'static str {
+        match self {
+            RelationKind::Table => "TABLE",
+            RelationKind::View => "VIEW",
+            RelationKind::MatView => "MATERIALIZED VIEW",
+        }
+    }
+
+    /// For messages, e.g. "Delete the materialized view …".
+    pub fn noun(self) -> &'static str {
+        match self {
+            RelationKind::Table => "table",
+            RelationKind::View => "view",
+            RelationKind::MatView => "materialized view",
+        }
+    }
+
+    /// For titles and menus, e.g. "Delete Materialized View".
+    pub fn title(self) -> &'static str {
+        match self {
+            RelationKind::Table => "Table",
+            RelationKind::View => "View",
+            RelationKind::MatView => "Materialized View",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct TableInfo {
     /// Qualified as "schema.table" outside the default schema.

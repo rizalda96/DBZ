@@ -1,6 +1,7 @@
 //! Runs a destructive action after the user pressed OK.
 
 use super::{Act, Confirm, Dbz, Sel, Tab};
+use crate::domain::RelationKind;
 use crate::worker::{Purpose, Req};
 
 impl Dbz {
@@ -44,10 +45,9 @@ impl Dbz {
         self.send(cid, Req::Exec { tab: 0, db, stmts: vec![sql], purpose });
     }
 
-    fn drop_tables(&mut self, cid: u64, db: String, names: Vec<String>, view: bool) {
+    fn drop_tables(&mut self, cid: u64, db: String, names: Vec<String>, kind: RelationKind) {
         let d = self.ws.dialect_of(cid);
-        let kw = if view { "VIEW" } else { "TABLE" };
-        let stmts = names.iter().map(|n| format!("DROP {} {}", kw, d.quote_ident(n))).collect();
+        let stmts = names.iter().map(|n| format!("DROP {} {}", kind.keyword(), d.quote_ident(n))).collect();
         self.send(cid, Req::Exec { tab: 0, db: db.clone(), stmts, purpose: Purpose::DropTables });
         self.ws.tabs.retain(|t| !matches!(t, Tab::Data(d) if d.cid == cid && d.db == db && names.contains(&d.table)));
         self.ws.active = self.ws.active.min(self.ws.tabs.len());

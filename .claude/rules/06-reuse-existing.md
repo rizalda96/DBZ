@@ -21,6 +21,8 @@ Sebelum menulis fungsi, widget, atau helper baru:
 | `ObjectTable { headers, rows }.show(ui, id, row, on)` + `ObjRow`, `RowEv` | daftar objek di tab Objects |
 | `tree_row(ui, TreeItem { .. })` | baris pohon koneksi |
 | `header_cell(ui)`, `cell_lines(ui, rect)`, `cell_text(ui, cell, color)`, `col_width(..)`, `arrow(p, c, r, Arrow, color)` | bagian grid |
+| `search_combo(ui, (salt, width), value, options)` | `ComboBox` dengan daftar yang bisa dicari + entri kosong |
+| `sql_preview(ui, statements, empty)` | halaman "SQL Preview" designer (read-only, berwarna) |
 | `search_list(ui, id, current, options)`, `multi_search_list(ui, id, chosen, options)`, `forget_search(ui, id)` | isi dropdown yang bisa dicari, satu pilihan atau centang banyak (pakai di `Popup`/`ComboBox` dengan `CloseOnClickOutside`) |
 | `sql_layouter` | pewarnaan sintaks SQL untuk `TextEdit::layouter` |
 

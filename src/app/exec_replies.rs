@@ -14,6 +14,7 @@ impl Dbz {
                 }
                 self.alert("Couldn't save changes", e.to_string());
             }
+            (Purpose::SaveMatView, result) => self.matview_saved(cid, (tab, db), result),
             (Purpose::SaveDesign { new_name }, Ok(_)) => self.design_saved(cid, (tab, db), new_name),
             (Purpose::SaveDesign { .. }, Err(e)) => {
                 if let Some(Tab::Design(d)) = self.ws.tab_mut(tab) {

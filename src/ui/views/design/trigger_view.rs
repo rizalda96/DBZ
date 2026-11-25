@@ -5,7 +5,8 @@
 
 use eframe::egui::{self, Rect, RichText, Ui};
 
-use super::form_rows::{body_panel, combo_sized, deferrable_rows, panel_frame, PanelText, FIELD_WIDTH};
+use super::form_rows::{body_panel, deferrable_rows, panel_frame, PanelText, FIELD_WIDTH};
+use crate::ui::widgets::search_combo;
 use super::parts_grid::{grid, Cell, GridSpec};
 use super::parts_state::PartKind;
 use super::DesignTab;
@@ -123,8 +124,8 @@ fn general(ui: &mut Ui, id: u64, choices: &IndexChoices, tr: &mut TriggerDef) {
     ui.end_row();
     ui.label("Trigger Function:");
     ui.horizontal(|ui| {
-        combo_sized(ui, (("dtrigger_fn_schema", id), SCHEMA_WIDTH), &mut tr.function_schema, &choices.function_schemas());
-        combo_sized(ui, (("dtrigger_fn", id), NAME_WIDTH), &mut tr.function, &choices.functions_in(&tr.function_schema));
+        search_combo(ui, (("dtrigger_fn_schema", id), SCHEMA_WIDTH), &mut tr.function_schema, &choices.function_schemas());
+        search_combo(ui, (("dtrigger_fn", id), NAME_WIDTH), &mut tr.function, &choices.functions_in(&tr.function_schema));
     });
     ui.end_row();
     ui.label("Arguments:");
@@ -144,8 +145,8 @@ fn constraint(ui: &mut Ui, id: u64, choices: &IndexChoices, tr: &mut TriggerDef)
     deferrable_rows(ui, ("dtrigger", id), &mut tr.deferrable, &mut tr.deferred);
     ui.label("Referenced Table:");
     ui.horizontal(|ui| {
-        combo_sized(ui, (("dtrigger_ref_schema", id), SCHEMA_WIDTH), &mut tr.ref_schema, &choices.table_schemas());
-        combo_sized(ui, (("dtrigger_ref_table", id), NAME_WIDTH), &mut tr.ref_table, &choices.tables_in(&tr.ref_schema));
+        search_combo(ui, (("dtrigger_ref_schema", id), SCHEMA_WIDTH), &mut tr.ref_schema, &choices.table_schemas());
+        search_combo(ui, (("dtrigger_ref_table", id), NAME_WIDTH), &mut tr.ref_table, &choices.tables_in(&tr.ref_schema));
     });
     ui.end_row();
     if tr.constraint {

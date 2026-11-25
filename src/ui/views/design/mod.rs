@@ -24,11 +24,11 @@ pub use state::DesignTab;
 
 use state::DesignSub;
 
-use eframe::egui::{self, FontId, RichText, Stroke, Ui};
+use eframe::egui::{self, RichText, Stroke, Ui};
 
 use crate::app::Act;
 use crate::ui::theme::pal;
-use crate::ui::widgets::sql_layouter;
+use crate::ui::widgets::sql_preview;
 use crate::worker::Req;
 
 pub fn design_view(ui: &mut Ui, t: &mut DesignTab, acts: &mut Vec<Act>) {
@@ -43,7 +43,7 @@ pub fn design_view(ui: &mut Ui, t: &mut DesignTab, acts: &mut Vec<Act>) {
         DesignSub::Part(k) => parts_view::list(ui, t, k),
         DesignSub::Options => parts_view::options(ui, t),
         DesignSub::Comment => comment(ui, t),
-        DesignSub::SqlPreview => sql_preview(ui, t),
+        DesignSub::SqlPreview => sql_preview(ui, &t.statements(), "-- No changes"),
     }
     for (schema, table) in t.ref_columns.take_requests() {
         acts.push(Act::Send(t.cid, Req::RefColumns { db: t.db.clone(), schema, table }));
@@ -67,17 +67,6 @@ fn comment(ui: &mut Ui, t: &mut DesignTab) {
     ui.add_space(6.0);
     ui.label("  Table comment:");
     ui.add_sized([ui.available_width() - 12.0, 120.0], egui::TextEdit::multiline(&mut t.comment));
-}
-
-fn sql_preview(ui: &mut Ui, t: &DesignTab) {
-    let mut s = t.statements().iter().map(|s| format!("{};", s)).collect::<Vec<_>>().join("\n\n");
-    if s.is_empty() {
-        s = "-- No changes".into();
-    }
-    let mut layouter = sql_layouter;
-    egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
-        ui.add(egui::TextEdit::multiline(&mut s).font(FontId::monospace(13.0)).desired_width(f32::INFINITY).interactive(true).frame(egui::Frame::NONE).layouter(&mut layouter));
-    });
 }
 
 fn fields(ui: &mut Ui, t: &mut DesignTab) {

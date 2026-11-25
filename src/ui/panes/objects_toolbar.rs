@@ -3,6 +3,7 @@
 use eframe::egui::{self, Ui};
 
 use crate::app::{Act, ObjMode, ObjRef, Workspace};
+use crate::domain::RelationKind;
 use crate::sql::dialect_for;
 use crate::ui::icons::Icon;
 use crate::ui::widgets::{tool_btn, tool_sep, toolbar_frame};
@@ -45,7 +46,7 @@ fn table_buttons(ui: &mut Ui, t: &Target, sel_obj: Option<String>, b: &mut Butto
     b(ui, Icon::Table, "Open Table", t.has_obj, Act::OpenTable(o.clone(), false));
     b(ui, Icon::Design, "Design Table", t.has_obj, Act::DesignTable(o.cid, o.db.clone(), Some(o.name.clone())));
     b(ui, Icon::Add, "New Table", t.has_db, Act::DesignTable(o.cid, o.db.clone(), None));
-    b(ui, Icon::Delete, "Delete Table", t.has_obj, Act::DropTables(o.cid, o.db.clone(), vec![o.name.clone()], false));
+    b(ui, Icon::Delete, "Delete Table", t.has_obj, Act::DropTables(o.cid, o.db.clone(), vec![o.name.clone()], RelationKind::Table));
     tool_sep(ui);
     b(ui, Icon::Import, "Import Wizard", t.has_db, Act::Import(o.cid, o.db.clone(), sel_obj));
     b(ui, Icon::Export, "Export Wizard", t.has_obj, Act::Export(o.clone()));
@@ -60,9 +61,13 @@ fn code_buttons(ui: &mut Ui, ws: &Workspace, t: &Target, b: &mut Button) {
         ObjMode::Views => {
             b(ui, Icon::View, "Open View", t.has_obj, Act::OpenTable(o.clone(), true));
             b(ui, Icon::Add, "New View", t.has_db, Act::NewQuery(o.cid, o.db.clone(), tpl.new_view.into()));
-            b(ui, Icon::Delete, "Delete View", t.has_obj, Act::DropTables(o.cid, o.db.clone(), vec![o.name.clone()], true));
+            b(ui, Icon::Delete, "Delete View", t.has_obj, Act::DropTables(o.cid, o.db.clone(), vec![o.name.clone()], RelationKind::View));
         }
-        ObjMode::MatViews => b(ui, Icon::MatView, "Open Materialized View", t.has_obj, Act::OpenTable(o.clone(), true)),
+        ObjMode::MatViews => {
+            b(ui, Icon::MatView, "Open Materialized View", t.has_obj, Act::OpenTable(o.clone(), true));
+            b(ui, Icon::Add, "New Materialized View", t.has_db, Act::NewMatView(o.cid, o.db.clone()));
+            b(ui, Icon::Delete, "Delete Materialized View", t.has_obj, Act::DropTables(o.cid, o.db.clone(), vec![o.name.clone()], RelationKind::MatView));
+        }
         ObjMode::Functions => {
             b(ui, Icon::Add, "New Function", t.has_db, Act::NewQuery(o.cid, o.db.clone(), tpl.new_function.into()));
             b(ui, Icon::Delete, "Delete Function", t.has_obj, Act::DropRoutine(o.clone(), routine_kind(ws, o)));

@@ -1,8 +1,9 @@
 //! Work tabs: data, designer and query tabs; saving queries; closing tabs.
 
 use super::{Confirm, Dbz, Dialog, ObjRef, Tab};
+use crate::domain::RelationKind;
 use crate::shared::sanitize;
-use crate::ui::views::{DataTab, DesignTab, QueryTab};
+use crate::ui::views::{DataTab, DesignTab, MatViewTab, QueryTab};
 use crate::worker::Req;
 
 impl Dbz {
@@ -46,13 +47,12 @@ impl Dbz {
         self.send(cid, Req::TableParts { db, table: tn });
     }
 
-    pub(super) fn ask_drop_tables(&mut self, cid: u64, db: String, names: Vec<String>, view: bool) {
-        let what = if view { "view" } else { "table" };
+    pub(super) fn ask_drop_tables(&mut self, cid: u64, db: String, names: Vec<String>, kind: RelationKind) {
         let msg = match names.as_slice() {
-            [one] => format!("Are you sure you want to delete the {} \"{}\"?", what, one),
-            _ => format!("Are you sure you want to delete these {} {}s?", names.len(), what),
+            [one] => format!("Are you sure you want to delete the {} \"{}\"?", kind.noun(), one),
+            _ => format!("Are you sure you want to delete these {} {}s?", names.len(), kind.noun()),
         };
-        self.confirm(format!("Delete {}", if view { "View" } else { "Table" }), msg, Confirm::DropTables(cid, db, names, view));
+        self.confirm(format!("Delete {}", kind.title()), msg, Confirm::DropTables(cid, db, names, kind));
     }
 
     pub(super) fn ask_truncate(&mut self, obj: ObjRef) {
@@ -68,17 +68,36 @@ impl Dbz {
 
     /// New query tab; with no database given, the first expanded (or first) one.
     pub(super) fn new_query(&mut self, cid: u64, db: String, sql: String) {
-        let db = if db.is_empty() { self.ws.conn(cid).and_then(|c| c.dbs.iter().find(|d| d.expanded).or(c.dbs.first())).map(|d| d.name.clone()).unwrap_or_default() } else { db };
         self.ids.query_counter += 1;
-        let id = self.new_tab_id();
-        let mut tab = QueryTab::new(id, cid, db, sql);
-        tab.schema = self.query_schema(cid, &tab.db);
-        let missing = tab.schema.is_empty() && !tab.db.is_empty();
-        let db = tab.db.clone();
-        self.push_tab(Tab::Query(tab));
+        let q = self.editor_state(cid, db, sql);
+        self.push_editor_tab(Tab::Query(q));
+    }
+
+    /// New materialized view designer in `db`, in the schema selected there.
+    pub(super) fn new_matview(&mut self, cid: u64, db: String) {
+        let q = self.editor_state(cid, db, String::new());
+        let db = q.db.clone();
+        self.push_editor_tab(Tab::MatView(MatViewTab::new(q)));
+        self.send(cid, Req::IndexChoices(db));
+    }
+
+    /// An SQL editor's state in `db` (the first expanded or first database when empty),
+    /// in the schema the tree has selected.
+    fn editor_state(&mut self, cid: u64, db: String, sql: String) -> QueryTab {
+        let db = if db.is_empty() { self.ws.conn(cid).and_then(|c| c.dbs.iter().find(|d| d.expanded).or(c.dbs.first())).map(|d| d.name.clone()).unwrap_or_default() } else { db };
+        let mut q = QueryTab::new(self.new_tab_id(), cid, db, sql);
+        q.schema = self.query_schema(cid, &q.db);
+        q
+    }
+
+    /// Opens a tab with an SQL editor; when its database's schemas aren't known yet they
+    /// are asked for, and its schema is filled in when they arrive (`replies::schemas`).
+    fn push_editor_tab(&mut self, mut tab: Tab) {
+        let cid = tab.cid();
+        let missing = tab.query_mut().filter(|q| q.schema.is_empty() && !q.db.is_empty()).map(|q| q.db.clone());
+        self.push_tab(tab);
         self.ensure_open(cid);
-        // Its schema is filled in when the list arrives (see `replies::schemas`).
-        if missing {
+        if let Some(db) = missing {
             self.send(cid, Req::Schemas(db));
         }
     }

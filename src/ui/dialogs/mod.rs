@@ -41,6 +41,7 @@ fn draw(ctx: &egui::Context, dialog: &mut Dialog, ws: &Workspace, acts: &mut Vec
         Dialog::Confirm { title, msg, .. } => simple::confirm(ctx, title, msg),
         Dialog::NewDb { cid, name, charset } => simple::new_db(ctx, (*cid, ws.kind_of(*cid)), name, charset, acts),
         Dialog::SaveQuery { tab, name } => simple::save_query(ctx, *tab, name, acts),
+        Dialog::NameMatView { tab, name } => simple::name_matview(ctx, *tab, name, acts),
         Dialog::Rename { cid, db, table, new } => simple::rename(ctx, (*cid, ws.dialect_of(*cid)), (db, table), new, acts),
         Dialog::About => simple::about(ctx),
         Dialog::Export { cid, db, opts } => wizards::export(ctx, (*cid, db), opts, acts),

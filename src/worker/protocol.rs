@@ -64,6 +64,7 @@ impl Req {
 pub enum Purpose {
     SaveData,
     SaveDesign { new_name: String },
+    SaveMatView,
     Refresh,
     DropTables,
     Other(String),

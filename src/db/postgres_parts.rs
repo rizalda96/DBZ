@@ -43,6 +43,8 @@ const TRIGGERS_SQL: &str = "SELECT t.tgname, t.tgtype, t.tgenabled <> 'D', fn.ns
      FROM pg_trigger t JOIN pg_proc p ON p.oid = t.tgfoid JOIN pg_namespace fn ON fn.oid = p.pronamespace \
      LEFT JOIN pg_class rc ON rc.oid = t.tgconstrrelid LEFT JOIN pg_namespace rn ON rn.oid = rc.relnamespace \
      WHERE t.tgrelid = {reg}::regclass AND NOT t.tgisinternal ORDER BY t.tgname";
+/// Roles that can own objects; the built-in `pg_*` ones can't log in and aren't listed.
+const ROLES_SQL: &str = "SELECT rolname FROM pg_roles WHERE rolname !~ '^pg_' ORDER BY 1";
 /// Functions a trigger can execute, outside the system schemas.
 const TRIGGER_FUNCTIONS_SQL: &str = "SELECT n.nspname, p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace \
      WHERE p.prorettype = 'trigger'::regtype AND n.nspname NOT IN ('pg_catalog', 'information_schema') ORDER BY 1, 2";
@@ -109,6 +111,7 @@ pub(super) fn index_choices(d: &mut dyn Driver, db: &str) -> Result<IndexChoices
         tablespaces: d.rows(db, TABLESPACES_SQL)?.iter().map(|r| text(&r[0])).collect(),
         tables: schema_names(&d.rows(db, REF_TABLES_SQL)?),
         trigger_functions: schema_names(&d.rows(db, TRIGGER_FUNCTIONS_SQL)?),
+        roles: d.rows(db, ROLES_SQL)?.iter().map(|r| text(&r[0])).collect(),
     })
 }
 

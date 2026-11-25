@@ -5,30 +5,14 @@
 use eframe::egui::{self, RichText, Stroke, Ui};
 
 use crate::ui::theme::pal;
-use crate::ui::widgets::{forget_search, search_list};
+use crate::ui::widgets::search_combo;
 
 /// Width of a panel's value column.
 pub(super) const FIELD_WIDTH: f32 = 370.0;
 
-/// A searchable drop-down led by an empty entry; true when a value was picked.
+/// A searchable drop-down led by an empty entry, panel-wide; true when a value was picked.
 pub(super) fn combo(ui: &mut Ui, salt: impl std::hash::Hash + std::fmt::Debug, value: &mut String, options: &[String]) -> bool {
-    combo_sized(ui, (salt, FIELD_WIDTH), value, options)
-}
-
-/// [`combo`] at `width` points, for two drop-downs side by side.
-pub(super) fn combo_sized(ui: &mut Ui, (salt, width): (impl std::hash::Hash + std::fmt::Debug, f32), value: &mut String, options: &[String]) -> bool {
-    // Its own search text, next to the combo's id.
-    let search = ui.scope_id().with(("combo_search", &salt));
-    let combo = egui::ComboBox::from_id_salt(salt).selected_text(value.clone()).width(width);
-    let entries = std::iter::once("").chain(options.iter().map(String::as_str));
-    let shown = combo.close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside).show_ui(ui, |ui| search_list(ui, search, value, entries));
-    let Some(picked) = shown.inner else {
-        forget_search(ui, search);
-        return false;
-    };
-    let Some(p) = picked else { return false };
-    *value = p;
-    true
+    search_combo(ui, (salt, FIELD_WIDTH), value, options)
 }
 
 /// Wording of a [`body_panel`].

@@ -3,6 +3,7 @@
 use eframe::egui::Ui;
 
 use crate::app::{Act, ObjMode, ObjRef, Sel};
+use crate::domain::RelationKind;
 use crate::transfer::ArchivePart;
 use crate::ui::widgets::menu_item;
 
@@ -63,11 +64,13 @@ pub(super) fn object_menu(ui: &mut Ui, mode: ObjMode, obj: &ObjRef, acts: &mut V
         ObjMode::Tables => table_menu(ui, obj, acts),
         ObjMode::Views => {
             menu_item(ui, acts, "Open View", Act::OpenTable(obj.clone(), true));
-            menu_item(ui, acts, "Delete View", Act::DropTables(obj.cid, obj.db.clone(), vec![obj.name.clone()], true));
+            menu_item(ui, acts, "Delete View", Act::DropTables(obj.cid, obj.db.clone(), vec![obj.name.clone()], RelationKind::View));
             menu_item(ui, acts, "Export Wizard…", Act::Export(obj.clone()));
         }
         ObjMode::MatViews => {
             menu_item(ui, acts, "Open Materialized View", Act::OpenTable(obj.clone(), true));
+            menu_item(ui, acts, "New Materialized View", Act::NewMatView(obj.cid, obj.db.clone()));
+            menu_item(ui, acts, "Delete Materialized View", Act::DropTables(obj.cid, obj.db.clone(), vec![obj.name.clone()], RelationKind::MatView));
             menu_item(ui, acts, "Export Wizard…", Act::Export(obj.clone()));
         }
         ObjMode::Functions => menu_item(ui, acts, "Delete", Act::DropRoutine(obj.clone(), "FUNCTION".into())),
@@ -92,7 +95,7 @@ fn table_menu(ui: &mut Ui, obj: &ObjRef, acts: &mut Vec<Act>) {
     menu_item(ui, acts, "Open Table", Act::OpenTable(obj.clone(), false));
     menu_item(ui, acts, "Design Table", Act::DesignTable(cid, db.clone(), Some(name.clone())));
     menu_item(ui, acts, "New Table", Act::DesignTable(cid, db.clone(), None));
-    menu_item(ui, acts, "Delete Table", Act::DropTables(cid, db.clone(), vec![name.clone()], false));
+    menu_item(ui, acts, "Delete Table", Act::DropTables(cid, db.clone(), vec![name.clone()], RelationKind::Table));
     menu_item(ui, acts, "Truncate Table", Act::Truncate(obj.clone()));
     menu_item(ui, acts, "Rename", Act::Rename(obj.clone()));
     ui.separator();

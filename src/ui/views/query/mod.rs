@@ -23,11 +23,19 @@ pub fn query_view(ui: &mut Ui, t: &mut QueryTab, conns: &[ConnState], acts: &mut
     if (run_key || wanted.run || explain) && !t.running {
         start_run(t, explain, acts);
     }
+    editor_with_results(ui, t);
+}
+
+/// The SQL editor with the result panel under it; also the materialized view
+/// designer's Definition page.
+pub fn editor_with_results(ui: &mut Ui, t: &mut QueryTab) {
     results::panel(ui, t);
     editor::panel(ui, t);
 }
 
-fn start_run(t: &mut QueryTab, explain: bool, acts: &mut Vec<Act>) {
+/// Runs the editor's SQL (or its selection), as EXPLAIN when asked; results land in
+/// `t` when the worker answers.
+pub fn start_run(t: &mut QueryTab, explain: bool, acts: &mut Vec<Act>) {
     let Some(sql) = t.sql_to_run(explain) else {
         acts.push(Act::Status("Nothing to run".into()));
         return;

@@ -98,6 +98,10 @@ impl Dbz {
                     d.parts.loading = false;
                     d.saving = false;
                 }
+                Tab::MatView(m) => {
+                    m.query.running = false;
+                    m.saving = false;
+                }
             }
         }
         self.alert(format!("Can't connect to \"{}\"", name), msg);
@@ -146,10 +150,7 @@ impl Dbz {
             }
         }
         let default = d.default_schema();
-        let waiting = self.ws.tabs.iter_mut().filter_map(|t| match t {
-            Tab::Query(q) if q.cid == cid && q.db == db && q.schema.is_empty() => Some(q),
-            _ => None,
-        });
+        let waiting = self.ws.tabs.iter_mut().filter_map(Tab::query_mut).filter(|q| q.cid == cid && q.db == db && q.schema.is_empty());
         for q in waiting {
             q.schema.clone_from(&default);
         }
@@ -190,7 +191,8 @@ impl Dbz {
         }
     }
 
-    /// Gives designer tabs of `db` the drop-down lists of the index fields editor.
+    /// Gives designer tabs of `db` their drop-down lists (index fields editor, owners,
+    /// tablespaces, …).
     fn index_choices(&mut self, cid: u64, db: &str, r: Result<IndexChoices, DbError>) {
         let choices = match r {
             Ok(c) => c,
@@ -199,11 +201,11 @@ impl Dbz {
                 return;
             }
         };
-        for t in self.ws.tabs.iter_mut() {
-            if let Tab::Design(d) = t {
-                if d.cid == cid && d.db == db {
-                    d.index_choices = choices.clone();
-                }
+        for t in self.ws.tabs.iter_mut().filter(|t| t.cid() == cid) {
+            match t {
+                Tab::Design(d) if d.db == db => d.index_choices = choices.clone(),
+                Tab::MatView(m) if m.query.db == db => m.choices = choices.clone(),
+                _ => {}
             }
         }
     }
@@ -224,7 +226,7 @@ impl Dbz {
     }
 
     fn query_done(&mut self, cid: u64, tab: u64, (results, error): (Vec<ResultSet>, Option<(String, DbError)>), elapsed: Duration) {
-        let Some(Tab::Query(q)) = self.ws.tab_mut(tab) else { return };
+        let Some(q) = self.ws.tab_mut(tab).and_then(Tab::query_mut) else { return };
         q.running = false;
         q.elapsed = Some(elapsed);
         q.view = if error.is_some() { 0 } else { results.iter().position(|r| r.has_rows).map(|i| i + 1).unwrap_or(0) };

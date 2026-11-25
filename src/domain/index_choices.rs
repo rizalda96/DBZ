@@ -32,6 +32,8 @@ pub struct IndexChoices {
     pub tables: Vec<SchemaName>,
     /// Functions a trigger can execute (PostgreSQL: those returning `trigger`).
     pub trigger_functions: Vec<SchemaName>,
+    /// Roles that can own an object (PostgreSQL).
+    pub roles: Vec<String>,
 }
 
 /// A table, function, … and the schema (or database) it lives in.
@@ -104,6 +106,7 @@ mod tests {
             tablespaces: vec![],
             tables: vec![table("public", "master_site"), table("public", "master_transporter"), table("audit", "log")],
             trigger_functions: vec![table("public", "insert_data_pooling"), table("audit", "log_change"), table("public", "touch")],
+            roles: vec![],
         }
     }
 

@@ -77,6 +77,23 @@ fn entry_list<'o>(ui: &mut Ui, found: &[&'o str], marked: impl Fn(&str) -> bool,
     clicked
 }
 
+/// A `ComboBox` `width` points wide whose list is a [`search_list`] led by an empty
+/// entry (to clear the value); true when a value was picked.
+pub fn search_combo(ui: &mut Ui, (salt, width): (impl std::hash::Hash + std::fmt::Debug, f32), value: &mut String, options: &[String]) -> bool {
+    // Its own search text, next to the combo's id.
+    let search = ui.scope_id().with(("combo_search", &salt));
+    let combo = egui::ComboBox::from_id_salt(salt).selected_text(value.clone()).width(width);
+    let entries = std::iter::once("").chain(options.iter().map(String::as_str));
+    let shown = combo.close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside).show_ui(ui, |ui| search_list(ui, search, value, entries));
+    let Some(picked) = shown.inner else {
+        forget_search(ui, search);
+        return false;
+    };
+    let Some(p) = picked else { return false };
+    *value = p;
+    true
+}
+
 /// Drops the search text, so the list opens unfiltered next time. Call it while the
 /// popup is closed.
 pub fn forget_search(ui: &Ui, id: egui::Id) {

@@ -1,7 +1,7 @@
 //! Messages from the UI to the app. Widgets push these; `Dbz::do_act` handles them.
 
 use super::state::{ObjMode, Sel};
-use crate::domain::{ConnConfig, DbKind};
+use crate::domain::{ConnConfig, DbKind, RelationKind};
 use crate::transfer::ArchivePart;
 use crate::ui::theme::ThemePref;
 use crate::worker::Req;
@@ -62,7 +62,7 @@ pub enum Act {
     // tables and routines
     OpenTable(ObjRef, bool),
     DesignTable(u64, String, Option<String>),
-    DropTables(u64, String, Vec<String>, bool),
+    DropTables(u64, String, Vec<String>, RelationKind),
     Truncate(ObjRef),
     Rename(ObjRef),
     DropRoutine(ObjRef, String),
@@ -72,6 +72,12 @@ pub enum Act {
     DeleteQuery(ObjRef),
     SaveQuery(u64),
     WriteQuery(u64, String),
+    /// Materialized view designer: open a new one in (connection, database).
+    NewMatView(u64, String),
+    /// Save the designer in this tab (asks for a name the first time).
+    SaveMatView(u64),
+    /// The name typed in its Save dialog.
+    NameMatView(u64, String),
     OpenSqlFile,
     // files
     Export(ObjRef),
@@ -97,7 +103,7 @@ pub enum Act {
 
 /// Destructive actions waiting for the user's OK.
 pub enum Confirm {
-    DropTables(u64, String, Vec<String>, bool),
+    DropTables(u64, String, Vec<String>, RelationKind),
     DropDb(u64, String),
     DeleteConn(u64),
     Truncate(ObjRef),

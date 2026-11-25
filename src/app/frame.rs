@@ -91,6 +91,7 @@ impl Dbz {
             Tab::Query(t) => views::query_view(ui, t, &ws.conns, acts),
             Tab::Data(t) => views::data_view(ui, t, acts),
             Tab::Design(t) => views::design_view(ui, t, acts),
+            Tab::MatView(t) => views::matview_view(ui, t, acts),
         }
     }
 

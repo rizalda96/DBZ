@@ -13,6 +13,8 @@ pub enum Dialog {
     Import { cid: u64, db: String, opts: ImportOptions },
     RunFile { cid: u64, db: String, path: String, cont: bool },
     SaveQuery { tab: u64, name: String },
+    /// The name of a new materialized view, asked on its first save.
+    NameMatView { tab: u64, name: String },
     Rename { cid: u64, db: String, table: String, new: String },
     About,
 }

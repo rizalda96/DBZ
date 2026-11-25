@@ -8,6 +8,7 @@ mod menu;
 mod object_table;
 mod result_grid;
 mod search_list;
+mod sql_preview;
 mod tree;
 
 pub use buttons::{icon_btn, ribbon_btn, ribbon_sep, tool_btn, tool_sep, toolbar_frame};
@@ -17,5 +18,6 @@ pub use highlight::sql_layouter;
 pub use menu::{context_menu, menu_config, menu_item, menu_style};
 pub use object_table::{ObjRow, ObjectTable, RowEv};
 pub use result_grid::result_grid;
-pub use search_list::{forget_search, multi_search_list, search_list};
+pub use search_list::{forget_search, multi_search_list, search_combo, search_list};
+pub use sql_preview::sql_preview;
 pub use tree::{tree_row, TreeItem};

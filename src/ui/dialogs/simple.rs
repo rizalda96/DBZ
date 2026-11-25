@@ -104,15 +104,29 @@ pub(super) fn new_db(ctx: &egui::Context, (cid, kind): (u64, DbKind), name: &mut
 }
 
 pub(super) fn save_query(ctx: &egui::Context, tab: u64, name: &mut String, acts: &mut Vec<Act>) -> Choice {
-    let mut choice = Choice::None;
-    win("Save Query").show(ctx, |ui| {
-        ui.label("Query name:");
-        ui.add(egui::TextEdit::singleline(name).desired_width(280.0));
-        choice = buttons(ui, "Save", !name.trim().is_empty());
-    });
+    let choice = name_prompt(ctx, ("Save Query", "Query name:"), name);
     if choice == Choice::Ok {
         acts.push(Act::WriteQuery(tab, name.trim().to_string()));
     }
+    choice
+}
+
+pub(super) fn name_matview(ctx: &egui::Context, tab: u64, name: &mut String, acts: &mut Vec<Act>) -> Choice {
+    let choice = name_prompt(ctx, ("Save Materialized View", "Materialized view name:"), name);
+    if choice == Choice::Ok {
+        acts.push(Act::NameMatView(tab, name.trim().to_string()));
+    }
+    choice
+}
+
+/// A one-field "name it" window; Save stays off while the name is blank.
+fn name_prompt(ctx: &egui::Context, (title, label): (&str, &str), name: &mut String) -> Choice {
+    let mut choice = Choice::None;
+    win(title).show(ctx, |ui| {
+        ui.label(label);
+        ui.add(egui::TextEdit::singleline(name).desired_width(280.0));
+        choice = buttons(ui, "Save", !name.trim().is_empty());
+    });
     choice
 }
 
