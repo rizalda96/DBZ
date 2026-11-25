@@ -1,137 +1,294 @@
-# DBZ
+<div align="center">
 
-DBZ is a desktop database manager for **MySQL**, **MariaDB** and **PostgreSQL**. It runs on
-**Windows, Linux and macOS** as a single native program, with no browser, server or
-runtime to install.
+<img src="assets/logo/logo.png" alt="DBZ" width="420">
 
-## What it is, and what it is for
+### A fast, native database manager for MySQL, MariaDB and PostgreSQL
 
-DBZ is the everyday tool for people who work with databases: connect to a server, browse
-its databases, schemas and tables, look at and edit data, write and run SQL, design tables,
-and move data in and out (import, export, dumps, backups and restores). All of it happens
-in one window, with no command line needed.
+One small program for Windows, macOS and Linux. No browser, no server, no runtime.
 
-### Where it comes from
+[![Made with Rust](https://img.shields.io/badge/made%20with-Rust-orange?logo=rust)](https://www.rust-lang.org/)
+[![Platforms](https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-blue)](#-downloads)
+[![Databases](https://img.shields.io/badge/databases-MySQL%20%C2%B7%20MariaDB%20%C2%B7%20PostgreSQL-336791)](#-features)
+[![Release](https://img.shields.io/github/v/release/rizalda96/DBZ?include_prereleases&label=release)](https://github.com/rizalda96/DBZ/releases/latest)
+[![Status](https://img.shields.io/badge/status-early%20alpha-yellow)](#-status)
 
-DBZ is a **clone of [Navicat](https://www.navicat.com/) and [HeidiSQL](https://www.heidisql.com/)**.
-Its layout, menus and designers follow Navicat closely: the connection tree, the Objects
-tab, the table designer with its Indexes / Foreign Keys / Uniques / Checks / Excludes /
-Rules / Triggers tabs, and the materialized view designer. It also borrows HeidiSQL's
-idea of a small, fast, free tool.
+**[⬇️ Download DBZ](https://github.com/rizalda96/DBZ/releases/latest)**
 
-It is an independent project. It is not made by, endorsed by or affiliated with
-PremiumSoft (Navicat) or the HeidiSQL authors, and it contains none of their code.
+[Features](#-features) · [Minimum specs](#-minimum-specs) · [Downloads](#-downloads) · [Install](#-install) · [Build from source](#-build-from-source) · [FAQ](#-faq)
 
-### How it is made
+</div>
 
-DBZ is written in **[Rust](https://www.rust-lang.org/)**. The interface uses
-[eframe/egui](https://github.com/emilk/egui), the database clients are
-[`mysql`](https://crates.io/crates/mysql) and [`postgres`](https://crates.io/crates/postgres),
-and file dialogs use [`rfd`](https://crates.io/crates/rfd).
+---
 
-It was built by **vibe coding**: the features were described in plain language, an AI
-coding assistant wrote and reworked the code, and each change was then checked by
-running it, reading it and testing it. The project rules the assistant follows are in
-[`CLAUDE.md`](CLAUDE.md) and [`.claude/rules/`](.claude/rules/), for example the module
-layout, the size limits and the `cargo clippy` / `cargo test` checks.
+## 🧩 What is DBZ?
 
-## Features
+DBZ is the everyday tool for people who work with databases. You connect to a server,
+browse its databases, schemas and tables, view and edit data, write and run SQL, design
+tables, and move data in and out with imports, exports, dumps, backups and restores. All
+of it happens in one window, without the command line.
 
-- Connections to MySQL, MariaDB and PostgreSQL. Test Connection, saved passwords
-  (optional), connect timeout.
-- Connection tree: connections › databases › schemas › tables, views, materialized views,
-  functions, saved queries and backups. Object list with rows, size, engine, dates and
-  comments. Information pane with General and DDL views.
-- **Table data**: edit cells, add and delete records, set NULL, filter (WHERE), sort,
-  page, then apply or discard the changes.
-- **SQL editor**: syntax highlighting, line numbers, run everything or just the selection,
-  Explain, Beautify, one result tab per statement, saved queries. Pick the connection,
-  database and schema to run in.
-- **Table designer**:
-  - Fields: types, length/decimals, not null, primary key, default, auto increment, comments.
-  - Indexes: fields with collation, operator class, sort and nulls order; method, unique,
-    concurrently, tablespace, storage parameters, partial-index condition.
-  - Foreign keys: referenced schema/table/fields, ON DELETE / ON UPDATE, MATCH FULL, deferrable.
-  - Uniques, checks, excludes, rules and triggers (PostgreSQL trigger function, WHEN,
-    arguments, constraint triggers).
-  - Table options, and an SQL preview of every change before it is saved.
-- **Materialized view designer** (PostgreSQL): definition with preview and explain, owner,
-  tablespace, fill factor, WITH DATA, comment, SQL preview. Delete materialized views.
-- **Files**:
-  - Import CSV/TXT. Export CSV/TXT/JSON/SQL/HTML.
-  - Dump to an SQL file (structure only, or structure + data), and run SQL files.
-  - PostgreSQL archive dumps (`.dump`, the `pg_dump` custom format) and restores.
-  - One-click backups and restores.
-  - A "Please wait" window while any of these run.
-- Users list. Light and dark themes (View › Theme). A splash screen, and the window
-  opens maximized.
+**Where it comes from.** DBZ is a **clone of [Navicat](https://www.navicat.com/) and
+[HeidiSQL](https://www.heidisql.com/)**. The layout, menus and designers follow Navicat
+closely: the connection tree, the Objects tab, the table designer with its Indexes,
+Foreign Keys, Uniques, Checks, Excludes, Rules and Triggers tabs, and the materialized
+view designer. From HeidiSQL it takes the idea of a small, fast, free tool.
 
-## Install
+**How it is made.** DBZ is written in **[Rust](https://www.rust-lang.org/)** with
+[eframe/egui](https://github.com/emilk/egui) for the interface,
+[`mysql`](https://crates.io/crates/mysql) and [`postgres`](https://crates.io/crates/postgres)
+for the database clients, and [`rfd`](https://crates.io/crates/rfd) for file dialogs.
+It was built by **vibe coding**: each feature was described in plain language, an AI
+coding assistant wrote the code, and every change was checked by running, reading and
+testing it. The rules the assistant follows are in [`CLAUDE.md`](CLAUDE.md) and
+[`.claude/rules/`](.claude/rules/).
 
-Download the installer for your system from the
-[**Releases** page](https://github.com/rizalda96/DBZ/releases/latest), install it and open
-DBZ. You don't need Rust or the source code.
+> [!IMPORTANT]
+> DBZ is an independent project. It is not made by, endorsed by or affiliated with
+> PremiumSoft (Navicat) or the HeidiSQL authors, and it contains none of their code.
 
-| System | File | How to install |
+## ✨ Features
+
+<table>
+<tr>
+<td width="25%" valign="top">
+
+**🔌 Connections**
+
+MySQL, MariaDB and PostgreSQL. Test Connection, optional saved passwords, connect
+timeout. A tree of databases, schemas, tables, views, materialized views, functions,
+saved queries and backups.
+
+</td>
+<td width="25%" valign="top">
+
+**📋 Table data**
+
+Edit cells, add and delete records, set NULL, filter with WHERE, sort and page. Apply
+or discard the changes when you're done.
+
+</td>
+<td width="25%" valign="top">
+
+**📝 SQL editor**
+
+Syntax highlighting, line numbers, run all or just the selection, Explain, Beautify,
+one result tab per statement, saved queries. Pick the connection, database and schema
+to run in.
+
+</td>
+<td width="25%" valign="top">
+
+**🛠️ Designers**
+
+Fields, indexes, foreign keys, uniques, checks, excludes, rules and triggers, plus a
+materialized view designer. Every change shows its SQL before it is saved.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**📥 Import / export**
+
+Import CSV and TXT. Export CSV, TXT, JSON, SQL and HTML.
+
+</td>
+<td valign="top">
+
+**💾 Dumps and backups**
+
+SQL dumps (structure, or structure and data), running SQL files, PostgreSQL `.dump`
+archives and restores, and one-click backups.
+
+</td>
+<td valign="top">
+
+**🎨 Look and feel**
+
+Light and dark themes, a splash screen, and a window that opens maximized.
+
+</td>
+<td valign="top">
+
+**⚡ Native and small**
+
+One compiled program. The Windows installer is about 7 MB, and DBZ needs no Java,
+.NET, Electron or browser.
+
+</td>
+</tr>
+</table>
+
+## 🚀 How it works
+
+1. **Download** the installer for your system from the
+   [Releases page](https://github.com/rizalda96/DBZ/releases/latest).
+2. **Install** it like any other app (see [Install](#-install)).
+3. **Connect**: File › New Connection, pick MySQL, MariaDB or PostgreSQL, fill in the
+   host, port, user and password, then click **Test Connection**.
+4. **Work**: open a table to edit data, open a query tab to run SQL, or right-click any
+   object for designers, dumps, imports and exports.
+
+## 💻 Minimum specs
+
+| | Minimum | Recommended |
 |---|---|---|
-| Windows 10/11 (64-bit) | `…_x64-setup.exe` | Run it and follow the steps. DBZ then appears in the Start menu, and can be removed under Settings › Apps. |
-| macOS on Apple Silicon (M1/M2/M3/M4) | `.dmg` with `aarch64` in its name | Open the `.dmg` and drag **DBZ** onto **Applications**. |
-| macOS on Intel | `.dmg` with `x64` in its name | The same. |
-| Debian, Ubuntu, Linux Mint, Pop!_OS | `.deb` | `sudo apt install ./dbz_*.deb`, or double-click it. DBZ appears in the app menu. |
-| Any other Linux (Fedora, Arch, openSUSE, …) | `.AppImage` | `chmod +x dbz_*.AppImage`, then run it. Nothing gets installed. |
+| **Windows** | Windows 10, 64-bit (x64) | Windows 11 |
+| **macOS** | macOS 11 Big Sur, Apple Silicon or Intel | The latest macOS |
+| **Linux** | x86_64 with glibc 2.35 or newer: Ubuntu 22.04, Debian 12, Fedora 36, Linux Mint 21 or later | Any current distribution with Wayland or X11 |
+| **Graphics** | OpenGL 2.0 (or OpenGL ES 2.0) | Any GPU or integrated graphics from the last ten years |
+| **Memory** | 2 GB RAM | 4 GB RAM or more |
+| **Disk** | 50 MB free | 100 MB free, plus room for your dumps and backups |
+| **Screen** | 1280 × 720 | 1920 × 1080 or larger |
+| **Database server** | A MySQL, MariaDB or PostgreSQL server DBZ can reach over the network | A currently supported version (MySQL 8, MariaDB 10.11+, PostgreSQL 13+) |
 
-### The first time you open it
+> [!NOTE]
+> DBZ draws its window with OpenGL. On a virtual machine or remote desktop without a
+> graphics driver, it may not open. Installing the VM's guest additions or a software
+> OpenGL driver (for example Mesa) fixes that.
+>
+> The **Dump / Restore Archive File** menus also need PostgreSQL's `pg_dump` and
+> `pg_restore` (see [PostgreSQL archive dumps](#postgresql-archive-dumps)). Everything
+> else works without them.
 
-The installers aren't signed with a paid code-signing certificate yet, so Windows and
-macOS warn about an unknown app the first time:
+## 💿 Downloads
 
-- **Windows** shows "Windows protected your PC". Click **More info**, then **Run anyway**.
-- **macOS** says DBZ "can't be opened" or "cannot be verified". Open **System Settings ›
-  Privacy & Security**, scroll down and click **Open Anyway** next to DBZ. On older
-  macOS versions, right-click DBZ in Applications and choose **Open** instead. To clear
-  the warning from a terminal, run `xattr -dr com.apple.quarantine /Applications/DBZ.app`.
+All files are on the **[latest release](https://github.com/rizalda96/DBZ/releases/latest)**.
+`<version>` in the names below is the release number, for example `0.1.0`.
+
+### Windows
+
+| Build | File | Notes |
+|---|---|---|
+| Windows 10/11 (x64) | `dbz_<version>_x64-setup.exe` | Installer. Adds DBZ to the Start menu. Remove it under Settings › Apps. |
+
+### macOS
+
+| Build | File | Notes |
+|---|---|---|
+| Apple Silicon (M1, M2, M3, M4) | `DBZ_<version>_aarch64.dmg` | Open it and drag DBZ onto Applications. |
+| Intel | `DBZ_<version>_x64.dmg` | The same. |
+
+Not sure which Mac you have? Click  › **About This Mac**. "Chip: Apple M…" means Apple
+Silicon, "Processor: Intel…" means Intel.
+
+### Linux
+
+| Build | File | Notes |
+|---|---|---|
+| Debian, Ubuntu, Linux Mint, Pop!_OS (x64) | `dbz_<version>_amd64.deb` | Installs DBZ into the app menu and pulls in the libraries it needs. |
+| Any other distribution (x64) | `dbz_<version>_x86_64.AppImage` | Portable. Make it executable and run it. Nothing gets installed. |
+
+> [!TIP]
+> GitHub shows the SHA-256 checksum of every file on the release page. To check a
+> download, compare it with the output of `sha256sum <file>` (Linux),
+> `shasum -a 256 <file>` (macOS) or `Get-FileHash <file>` (Windows PowerShell).
+
+## 📦 Install
+
+### Windows
+
+1. Download `dbz_<version>_x64-setup.exe`.
+2. Run it and follow the steps.
+3. Open **DBZ** from the Start menu.
+
+The installer isn't signed with a paid certificate yet, so Windows may show "Windows
+protected your PC". Click **More info**, then **Run anyway**.
+
+### macOS
+
+1. Download the `.dmg` for your Mac (`aarch64` for Apple Silicon, `x64` for Intel).
+2. Open it and drag **DBZ** onto **Applications**.
+3. Open DBZ from Applications or Launchpad.
+
+The app isn't signed or notarized yet, so macOS may say DBZ "can't be opened" or
+"cannot be verified" the first time. Open **System Settings › Privacy & Security**,
+scroll down and click **Open Anyway** next to DBZ. On older macOS versions, right-click
+DBZ in Applications and choose **Open**. From a terminal, this clears the warning too:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/DBZ.app
+```
+
+### Linux
+
+**Debian, Ubuntu and similar:**
+
+```sh
+sudo apt install ./dbz_<version>_amd64.deb
+```
+
+Or double-click the `.deb` to open it in your software center. DBZ then appears in the
+app menu. Remove it with `sudo apt remove dbz`.
+
+**Any other distribution (AppImage):**
+
+```sh
+chmod +x dbz_<version>_x86_64.AppImage
+./dbz_<version>_x86_64.AppImage
+```
+
+If the AppImage says it needs FUSE, install `libfuse2` (Ubuntu 22.04: `sudo apt install
+libfuse2`; Ubuntu 24.04: `sudo apt install libfuse2t64`), or run it with
+`--appimage-extract-and-run`.
+
+The Open and Save dialogs use **xdg-desktop-portal**. GNOME and KDE ship it. On other
+desktops, install `xdg-desktop-portal` and `xdg-desktop-portal-gtk`.
 
 ### PostgreSQL archive dumps
 
 The **Dump / Restore Archive File** menus run PostgreSQL's own `pg_dump` and
-`pg_restore`, so those have to be installed and on `PATH`. Everything else in DBZ works
-without them.
+`pg_restore`, so they must be installed and on `PATH`. Use the same major version as
+your server, or a newer one.
 
 - **Windows:** install PostgreSQL (or only its command line tools) and add its `bin`
   folder, for example `C:\Program Files\PostgreSQL\17\bin`, to `PATH`.
 - **macOS:** run `brew install libpq`. Apps opened from Finder don't read your shell's
   `PATH`, so also link the tools:
   `sudo ln -s "$(brew --prefix libpq)/bin/pg_dump" "$(brew --prefix libpq)/bin/pg_restore" /usr/local/bin/`.
-- **Linux:** run `sudo apt install postgresql-client` (Debian/Ubuntu),
+- **Linux:** `sudo apt install postgresql-client` (Debian/Ubuntu),
   `sudo dnf install postgresql` (Fedora) or `sudo pacman -S postgresql` (Arch).
 
-Use the same major version as your server, or a newer one.
+## 📂 Where DBZ keeps its files
 
-## Build from source
+Settings, connections, saved queries and backups live in:
 
-This section is for developers who want to change DBZ. Rust's `cargo` builds it the same
-way on every system.
+| OS | Folder |
+|---|---|
+| Windows | `%APPDATA%\DBZ` |
+| macOS | `~/Library/Application Support/DBZ` |
+| Linux | `$XDG_CONFIG_HOME/dbz`, usually `~/.config/dbz` |
+
+Connections are in `connections.json` and settings in `settings.json`. Uninstalling DBZ
+leaves this folder in place, so delete it by hand if you want a clean slate.
+
+> [!WARNING]
+> When **Save password** is ticked, the password is stored in `connections.json` **in
+> plain text**, so keep that folder private. When it isn't ticked, the password is only
+> kept until DBZ closes.
+
+## 🔧 Build from source
+
+For developers who want to change DBZ. Rust's `cargo` builds it the same way on every
+system.
 
 1. Install Rust with [rustup](https://rustup.rs/).
-2. Install the few system packages your OS needs (see the sections below).
-3. Get the code and build it:
+2. Install the system packages for your OS (below).
+3. Build and run:
 
 ```sh
 git clone https://github.com/rizalda96/DBZ.git
 cd DBZ
 cargo build --release
+./target/release/dbz        # Windows: target\release\dbz.exe
 ```
 
-The program is `target/release/dbz` (`dbz.exe` on Windows). The first build takes a few
-minutes. Later builds are quick.
+The first build takes a few minutes. Later builds are quick.
 
-The PostgreSQL archive dump and restore menus run `pg_dump` and `pg_restore`, so those
-two programs have to be on `PATH`. Everything else in DBZ works without them.
+<details>
+<summary><b>Linux packages</b></summary>
 
-### Linux
-
-**1. Build tools and the libraries the window needs.** DBZ draws with OpenGL and runs on
-Wayland or X11.
+DBZ draws with OpenGL and runs on Wayland or X11.
 
 Debian / Ubuntu / Linux Mint:
 
@@ -157,27 +314,7 @@ sudo pacman -S --needed base-devel pkgconf curl git \
     xdg-desktop-portal xdg-desktop-portal-gtk
 ```
 
-The Open and Save dialogs go through **xdg-desktop-portal**. GNOME and KDE ship it
-already. On other desktops, install the portal package above, or use
-`xdg-desktop-portal-kde` / `-gnome` instead of `-gtk`.
-
-**2. Rust:**
-
-```sh
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source "$HOME/.cargo/env"
-```
-
-**3. Build and run:**
-
-```sh
-git clone https://github.com/rizalda96/DBZ.git
-cd DBZ
-cargo build --release
-./target/release/dbz
-```
-
-**4. Optional: put it in your app menu:**
+To add a self-built DBZ to your app menu:
 
 ```sh
 install -Dm755 target/release/dbz ~/.local/bin/dbz
@@ -195,98 +332,64 @@ EOF
 
 Make sure `~/.local/bin` is on your `PATH`.
 
-For archive dumps, see [PostgreSQL archive dumps](#postgresql-archive-dumps) above.
+</details>
 
-### macOS
+<details>
+<summary><b>macOS packages</b></summary>
 
-Works on Apple Silicon and Intel Macs.
-
-**1. Apple's command line tools** (compiler and linker):
+Apple's command line tools provide the compiler and linker:
 
 ```sh
 xcode-select --install
 ```
 
-**2. Rust:**
-
-```sh
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source "$HOME/.cargo/env"
-```
-
-**3. Build and run:**
-
-```sh
-git clone https://github.com/rizalda96/DBZ.git
-cd DBZ
-cargo build --release
-./target/release/dbz
-```
-
-**4. Optional: run it as `dbz` from any terminal:**
+To run a self-built DBZ as `dbz` from any terminal:
 
 ```sh
 sudo install -m755 target/release/dbz /usr/local/bin/dbz
 ```
 
-For archive dumps, see [PostgreSQL archive dumps](#postgresql-archive-dumps) above.
+</details>
 
-### Windows
+<details>
+<summary><b>Windows packages</b></summary>
 
-1. Install [Rust](https://rustup.rs/). The default MSVC toolchain needs the
-   "Desktop development with C++" workload from the Visual Studio Build Tools.
-2. In a terminal, run `git clone https://github.com/rizalda96/DBZ.git`, `cd DBZ` and
-   `cargo build --release`.
-3. Run `target\release\dbz.exe`.
+The default MSVC toolchain needs the "Desktop development with C++" workload from the
+Visual Studio Build Tools.
 
 To build with the `x86_64-pc-windows-gnu` toolchain instead, keep `patches/windows-link`
 and `.cargo/config.toml`. They let that toolchain build on machines without an assembler
 for `dlltool`. With the MSVC toolchain you can remove them.
 
-For archive dumps, see [PostgreSQL archive dumps](#postgresql-archive-dumps) above.
+</details>
 
-## Where DBZ keeps its files
-
-Settings, connections, saved queries and backups live in:
-
-| OS | Folder |
-|---|---|
-| Windows | `%APPDATA%\DBZ` |
-| macOS | `~/Library/Application Support/DBZ` |
-| Linux | `$XDG_CONFIG_HOME/dbz`, usually `~/.config/dbz` |
-
-Connections are in `connections.json` and settings in `settings.json`. When **Save
-password** is ticked, the password is stored in that file **in plain text**, so keep the
-folder private. When it isn't ticked, the password is only kept until DBZ closes.
-
-## Development
+### Development
 
 ```sh
 cargo test
 cargo fmt
-cargo clippy -- -W clippy::too_many_lines -W clippy::too_many_arguments -W clippy::excessive_nesting
+cargo clippy --all-targets -- -W clippy::too_many_lines -W clippy::too_many_arguments -W clippy::excessive_nesting
 ```
 
-`dbz --screenshot out.png` renders the window, saves a picture of it and exits.
-
-See [`CLAUDE.md`](CLAUDE.md) for the layout of the code and the rules changes follow.
+`dbz --screenshot out.png` renders the window, saves a picture of it and exits. See
+[`CLAUDE.md`](CLAUDE.md) for the layout of the code and the rules changes follow.
 
 ### Making a release
 
-The installers are built by GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml)),
-each on its own system: Windows, Linux (Ubuntu 22.04, so the Linux build also runs on
-older distributions) and macOS (Apple Silicon and Intel). To publish one:
+GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml)) builds
+the installers, each on its own system: Windows, Linux (Ubuntu 22.04, so the build also
+runs on older distributions) and macOS (Apple Silicon and Intel).
 
 1. Set `version` in `Cargo.toml`, for example `0.2.0`, and commit.
 2. Push a matching tag: `git tag v0.2.0 && git push origin v0.2.0`.
 
-The workflow tests the code, builds it and attaches the `.exe`, `.dmg`, `.deb` and
-`.AppImage` files to the `v0.2.0` release. **Run workflow** on the Actions tab builds the
-same files as downloadable artifacts, without making a release.
+The workflow tests and builds the code, then attaches the `.exe`, `.dmg`, `.deb` and
+`.AppImage` files to the `v0.2.0` release. **Run workflow** on the Actions tab builds
+the same files as downloadable artifacts, without making a release.
 
 To build an installer for your own system by hand, use
 [cargo-packager](https://github.com/crabnebula-dev/cargo-packager). Its settings are
-under `[package.metadata.packager]` in `Cargo.toml`.
+under `[package.metadata.packager]` in `Cargo.toml`, and the files land in `dist/`.
 
 ```sh
 cargo install cargo-packager --locked
@@ -294,4 +397,33 @@ cargo build --release
 cargo packager --release --formats nsis   # Windows: nsis · macOS: dmg · Linux: deb,appimage
 ```
 
-The files land in `dist/`.
+## ❓ FAQ
+
+**Is DBZ free?** Yes. It costs nothing to download and use. A formal open source license hasn't been chosen yet.
+
+**Does it send my data anywhere?** No. DBZ only talks to the database servers you add,
+and it keeps its settings on your own disk.
+
+**Which databases does it support?** MySQL, MariaDB and PostgreSQL. Some designer tabs
+(Excludes, Rules, materialized views, trigger functions) exist only for PostgreSQL,
+because MySQL and MariaDB have no such objects.
+
+**Why does my antivirus or OS warn about it?** The installers aren't code-signed yet.
+See the Windows and macOS notes under [Install](#-install).
+
+**I found a bug.** Please [open an issue](https://github.com/rizalda96/DBZ/issues) with
+your OS, your database and its version, and the steps that cause it.
+
+## 🧭 Status
+
+DBZ is in **early alpha** (version 0.1.0). The main features work, but expect rough
+edges, and back up important databases before running designers, restores or SQL files
+against them.
+
+## 🙏 Credits
+
+- Design inspired by [Navicat](https://www.navicat.com/) and [HeidiSQL](https://www.heidisql.com/).
+- Built with [egui](https://github.com/emilk/egui), [rust-mysql-simple](https://github.com/blackbeam/rust-mysql-simple),
+  [rust-postgres](https://github.com/sfackler/rust-postgres), [rfd](https://github.com/PolyMeilex/rfd)
+  and [cargo-packager](https://github.com/crabnebula-dev/cargo-packager).
+- Made by [rizalda96](https://github.com/rizalda96).
