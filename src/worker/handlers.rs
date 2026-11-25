@@ -44,7 +44,7 @@ pub(super) fn handle(d: &mut dyn Driver, cfg: &ConnConfig, req: Req) -> Resp {
             let result = d.ddl(&db, &table, is_view);
             Resp::Ddl { db, table, result }
         }
-        Req::Query { tab, db, sql } => run_script(d, tab, &db, &sql),
+        Req::Query { tab, db, schema, sql } => run_script(d, tab, (&db, &schema), &sql),
         Req::TableData { tab, db, page } => table_page(d, tab, &db, &page),
         Req::Exec { tab, db, stmts, purpose } => {
             let result = exec(d, &db, &stmts, &purpose);
@@ -62,21 +62,36 @@ fn version(d: &mut dyn Driver, cfg: &ConnConfig) -> String {
     d.query(&cfg.initial_db, "SELECT VERSION()").ok().and_then(|sets| first_cell(&sets)).unwrap_or_default()
 }
 
-/// Runs each statement of an editor script, stopping at the first error.
-fn run_script(d: &mut dyn Driver, tab: u64, db: &str, sql: &str) -> Resp {
+/// Runs an editor script in `db`, with unqualified names resolving in `schema` first
+/// (when the server has schemas and one is chosen).
+fn run_script(d: &mut dyn Driver, tab: u64, (db, schema): (&str, &str), sql: &str) -> Resp {
     let start = Instant::now();
+    let dialect = d.dialect();
+    let use_schema = dialect.use_schema(schema);
+    if let Some(set) = &use_schema {
+        if let Err(e) = d.query(db, set) {
+            return Resp::Query { tab, results: vec![], error: Some((set.clone(), e)), elapsed: start.elapsed() };
+        }
+    }
+    let (results, error) = run_statements(d, db, sql);
+    if let (Some(_), Some(reset)) = (&use_schema, dialect.reset_schema()) {
+        // The script already has its answer. A reset can only fail inside a
+        // transaction the script left aborted, and the user sees that on the next run.
+        let _ = d.query(db, reset);
+    }
+    Resp::Query { tab, results, error, elapsed: start.elapsed() }
+}
+
+/// Runs each statement of a script, stopping at the first error.
+fn run_statements(d: &mut dyn Driver, db: &str, sql: &str) -> (Vec<ResultSet>, Option<(String, DbError)>) {
     let mut results = vec![];
-    let mut error = None;
     for stmt in split_statements(sql) {
         match d.query(db, &stmt) {
             Ok(sets) => results.extend(label_sets(sets, &stmt)),
-            Err(e) => {
-                error = Some((stmt, e));
-                break;
-            }
+            Err(e) => return (results, Some((stmt, e))),
         }
     }
-    Resp::Query { tab, results, error, elapsed: start.elapsed() }
+    (results, None)
 }
 
 /// Tags every set with its statement; a statement with no sets still gets one.

@@ -56,6 +56,18 @@ pub trait Dialect: Sync {
     /// Statements that turn the `old` storage options into the `new` ones.
     fn table_options(&self, table: &str, old: &TableOptions, new: &TableOptions) -> Vec<String>;
 
+    /// Makes unqualified names in a query resolve in `schema` first; None on servers
+    /// without schemas.
+    fn use_schema(&self, _schema: &str) -> Option<String> {
+        None
+    }
+
+    /// Undoes [`Dialect::use_schema`] once the query has run, so other work on the
+    /// same connection sees the usual names again.
+    fn reset_schema(&self) -> Option<&'static str> {
+        None
+    }
+
     /// `COMMENT ON CONSTRAINT`, on servers that keep comments on constraints.
     fn constraint_comment(&self, _table: &str, _name: &str, _comment: &str) -> Option<String> {
         None

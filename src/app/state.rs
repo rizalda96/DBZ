@@ -104,6 +104,13 @@ impl DbState {
         DbState { name, ..Default::default() }
     }
 
+    /// The schema a new query starts in: `public` when there is one, else the first;
+    /// empty on servers without schemas (or before they are loaded).
+    pub fn default_schema(&self) -> String {
+        let public = self.schemas.iter().find(|s| *s == "public");
+        public.or(self.schemas.first()).cloned().unwrap_or_default()
+    }
+
     pub fn files(&self, mode: ObjMode) -> &[SavedFile] {
         if mode == ObjMode::Queries {
             &self.queries
@@ -251,8 +258,16 @@ impl Default for PaneState {
 
 #[cfg(test)]
 mod tests {
-    use super::ObjMode;
+    use super::{DbState, ObjMode};
     use crate::domain::TableInfo;
+
+    #[test]
+    fn queries_start_in_public_or_the_first_schema() {
+        let with = |schemas: &[&str]| DbState { schemas: schemas.iter().map(|s| s.to_string()).collect(), ..DbState::new("db".into()) }.default_schema();
+        assert_eq!(with(&["audit", "public"]), "public");
+        assert_eq!(with(&["audit", "sales"]), "audit");
+        assert_eq!(with(&[]), "");
+    }
 
     #[test]
     fn each_relation_lands_in_one_folder() {

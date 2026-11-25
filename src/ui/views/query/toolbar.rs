@@ -1,10 +1,11 @@
-//! Query tab toolbar: save, connection/database pickers, run, explain, format.
+//! Query tab toolbar: save, connection/database/schema pickers, run, explain, format.
 
 use eframe::egui::{self, Ui};
 
 use super::QueryTab;
-use crate::app::{Act, ConnState};
+use crate::app::{Act, ConnState, DbState};
 use crate::sql::beautify;
+use crate::worker::Req;
 use crate::ui::icons::Icon;
 use crate::ui::widgets::{tool_btn, tool_sep, toolbar_frame};
 
@@ -25,7 +26,8 @@ pub(super) fn show(ui: &mut Ui, t: &mut QueryTab, conns: &[ConnState], acts: &mu
             }
             tool_sep(ui);
             conn_picker(ui, t, conns, acts);
-            db_picker(ui, t, conns);
+            db_picker(ui, t, conns, acts);
+            schema_picker(ui, t, conns);
             tool_sep(ui);
             run_buttons(ui, t, &mut wanted);
             tool_sep(ui);
@@ -46,21 +48,47 @@ fn conn_picker(ui: &mut Ui, t: &mut QueryTab, conns: &[ConnState], acts: &mut Ve
         for c in conns {
             if ui.selectable_label(c.cfg.id == t.cid, &c.cfg.name).clicked() {
                 t.cid = c.cfg.id;
-                t.db = c.dbs.first().map(|d| d.name.clone()).unwrap_or_default();
+                let first = c.dbs.first();
+                t.db = first.map(|d| d.name.clone()).unwrap_or_default();
+                t.schema = first.map(DbState::default_schema).unwrap_or_default();
                 acts.push(Act::EnsureOpen(c.cfg.id));
             }
         }
     });
 }
 
-fn db_picker(ui: &mut Ui, t: &mut QueryTab, conns: &[ConnState]) {
-    let dbs: Vec<String> = conns.iter().find(|c| c.cfg.id == t.cid).map(|c| c.dbs.iter().map(|d| d.name.clone()).collect()).unwrap_or_default();
+fn db_picker(ui: &mut Ui, t: &mut QueryTab, conns: &[ConnState], acts: &mut Vec<Act>) {
+    let dbs: &[DbState] = conns.iter().find(|c| c.cfg.id == t.cid).map(|c| c.dbs.as_slice()).unwrap_or_default();
     let shown = if t.db.is_empty() { "(database)".to_string() } else { t.db.clone() };
     egui::ComboBox::from_id_salt(("qdb", t.id)).selected_text(shown).width(140.0).show_ui(ui, |ui| {
         for d in dbs {
-            if ui.selectable_label(d == t.db, &d).clicked() {
-                t.db = d;
+            if ui.selectable_label(d.name == t.db, &d.name).clicked() {
+                pick_db(t, d, acts);
             }
+        }
+    });
+}
+
+/// A new database starts in its default schema; when its schemas aren't loaded yet
+/// they are asked for, and the app fills the schema in when they arrive.
+fn pick_db(t: &mut QueryTab, d: &DbState, acts: &mut Vec<Act>) {
+    t.db = d.name.clone();
+    t.schema = d.default_schema();
+    if d.schemas.is_empty() {
+        acts.push(Act::Send(t.cid, Req::Schemas(d.name.clone())));
+    }
+}
+
+/// Only on servers with schemas (the list stays empty elsewhere).
+fn schema_picker(ui: &mut Ui, t: &mut QueryTab, conns: &[ConnState]) {
+    let schemas: &[String] = conns.iter().find(|c| c.cfg.id == t.cid).and_then(|c| c.db(&t.db)).map(|d| d.schemas.as_slice()).unwrap_or_default();
+    if schemas.is_empty() && t.schema.is_empty() {
+        return;
+    }
+    let shown = if t.schema.is_empty() { "(schema)".to_string() } else { t.schema.clone() };
+    egui::ComboBox::from_id_salt(("qschema", t.id)).selected_text(shown).width(140.0).show_ui(ui, |ui| {
+        for s in schemas {
+            ui.selectable_value(&mut t.schema, s.clone(), s);
         }
     });
 }

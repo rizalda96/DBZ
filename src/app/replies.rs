@@ -126,11 +126,24 @@ impl Dbz {
         }
     }
 
+    /// Stores the schemas, and starts query tabs of `db` that have none yet in its
+    /// default one.
     fn schemas(&mut self, cid: u64, db: &str, r: Result<Vec<String>, DbError>) {
         let Some(d) = self.ws.db_mut(cid, db) else { return };
         match r {
             Ok(s) => d.schemas = s,
-            Err(e) => self.status = format!("Error loading schemas: {}", e),
+            Err(e) => {
+                self.status = format!("Error loading schemas: {}", e);
+                return;
+            }
+        }
+        let default = d.default_schema();
+        let waiting = self.ws.tabs.iter_mut().filter_map(|t| match t {
+            Tab::Query(q) if q.cid == cid && q.db == db && q.schema.is_empty() => Some(q),
+            _ => None,
+        });
+        for q in waiting {
+            q.schema.clone_from(&default);
         }
     }
 

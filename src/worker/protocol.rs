@@ -29,7 +29,8 @@ pub enum Req {
     /// Columns of a table a foreign key references, for the Referenced Fields drop-down.
     RefColumns { db: String, schema: String, table: String },
     Ddl { db: String, table: String, is_view: bool },
-    Query { tab: u64, db: String, sql: String },
+    /// `schema` is where unqualified names resolve first; empty = the server's default.
+    Query { tab: u64, db: String, schema: String, sql: String },
     TableData { tab: u64, db: String, page: PageQuery },
     Exec { tab: u64, db: String, stmts: Vec<String>, purpose: Purpose },
     Export { db: String, opts: ExportOptions },

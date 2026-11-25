@@ -71,8 +71,23 @@ impl Dbz {
         let db = if db.is_empty() { self.ws.conn(cid).and_then(|c| c.dbs.iter().find(|d| d.expanded).or(c.dbs.first())).map(|d| d.name.clone()).unwrap_or_default() } else { db };
         self.ids.query_counter += 1;
         let id = self.new_tab_id();
-        self.push_tab(Tab::Query(QueryTab::new(id, cid, db, sql)));
+        let mut tab = QueryTab::new(id, cid, db, sql);
+        tab.schema = self.query_schema(cid, &tab.db);
+        let missing = tab.schema.is_empty() && !tab.db.is_empty();
+        let db = tab.db.clone();
+        self.push_tab(Tab::Query(tab));
         self.ensure_open(cid);
+        // Its schema is filled in when the list arrives (see `replies::schemas`).
+        if missing {
+            self.send(cid, Req::Schemas(db));
+        }
+    }
+
+    /// The schema the tree has selected in `db`, else the database's default one.
+    fn query_schema(&self, cid: u64, db: &str) -> String {
+        let sel = &self.ws.sel;
+        let selected = sel.schema.clone().filter(|_| sel.cid == Some(cid) && sel.db.as_deref() == Some(db));
+        selected.or_else(|| self.ws.conn(cid).and_then(|c| c.db(db)).map(|d| d.default_schema())).unwrap_or_default()
     }
 
     pub(super) fn open_saved_query(&mut self, obj: ObjRef) {

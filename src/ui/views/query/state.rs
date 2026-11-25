@@ -11,6 +11,8 @@ pub struct QueryTab {
     pub id: u64,
     pub cid: u64,
     pub db: String,
+    /// Where unqualified names resolve first (PostgreSQL); empty = the server's default.
+    pub schema: String,
     pub title: String,
     pub sql: String,
     pub saved_name: Option<String>,
@@ -33,6 +35,7 @@ impl QueryTab {
             id,
             cid,
             db,
+            schema: String::new(),
             title: "Untitled".into(),
             sql,
             saved_name: None,

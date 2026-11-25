@@ -34,5 +34,5 @@ fn start_run(t: &mut QueryTab, explain: bool, acts: &mut Vec<Act>) {
     };
     t.running = true;
     t.error = None;
-    acts.push(Act::Send(t.cid, Req::Query { tab: t.id, db: t.db.clone(), sql }));
+    acts.push(Act::Send(t.cid, Req::Query { tab: t.id, db: t.db.clone(), schema: t.schema.clone(), sql }));
 }

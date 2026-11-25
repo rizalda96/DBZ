@@ -98,6 +98,21 @@ impl Dialect for PgDialect {
         "BEGIN"
     }
 
+    /// `public` stays on the path after the chosen schema, so functions from
+    /// extensions installed there keep working.
+    fn use_schema(&self, schema: &str) -> Option<String> {
+        let s = schema.trim();
+        if s.is_empty() {
+            return None;
+        }
+        let path = if s == "public" { self.quote_ident(s) } else { format!("{}, public", self.quote_ident(s)) };
+        Some(format!("SET search_path TO {}", path))
+    }
+
+    fn reset_schema(&self) -> Option<&'static str> {
+        Some("RESET search_path")
+    }
+
     fn single_row_limit(&self) -> &'static str {
         ""
     }
@@ -220,5 +235,20 @@ impl PgDialect {
         } else {
             format!("ALTER TABLE {} ALTER COLUMN {} SET DEFAULT {}", t, col, default_expr(self, default))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PgDialect;
+    use crate::sql::{Dialect, MySqlDialect};
+
+    #[test]
+    fn query_schema_goes_first_on_the_search_path() {
+        assert_eq!(PgDialect.use_schema("sales").as_deref(), Some("SET search_path TO \"sales\", public"));
+        assert_eq!(PgDialect.use_schema("public").as_deref(), Some("SET search_path TO \"public\""));
+        assert_eq!(PgDialect.use_schema(" "), None);
+        assert_eq!(PgDialect.use_schema("we\"ird").as_deref(), Some("SET search_path TO \"we\"\"ird\", public"));
+        assert_eq!((MySqlDialect.use_schema("sales"), MySqlDialect.reset_schema()), (None, None));
     }
 }
