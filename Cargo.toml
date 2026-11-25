@@ -2,6 +2,22 @@
 name = "dbz"
 version = "0.1.0"
 edition = "2021"
+description = "Desktop database manager for MySQL, MariaDB and PostgreSQL"
+authors = ["rizalda96"]
+homepage = "https://github.com/rizalda96/DBZ"
+
+# Installers: `cargo packager --release` after `cargo build --release` (the release
+# workflow in .github/workflows/release.yml does both on each OS). Output goes to dist/.
+[package.metadata.packager]
+product-name = "DBZ"
+identifier = "com.rizalda96.dbz"
+out-dir = "dist"
+category = "DeveloperTool"
+icons = ["assets/logo/icon.png", "assets/logo/icon.ico"]
+
+# What the window needs at run time, and the file dialogs' portal.
+[package.metadata.packager.deb]
+depends = ["libxkbcommon0", "libgl1", "libwayland-client0", "libx11-6", "xdg-desktop-portal"]
 
 [dependencies]
 # `wayland` and `x11` are the Linux window backends (ignored on Windows and macOS).

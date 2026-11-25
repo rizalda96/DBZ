@@ -68,7 +68,49 @@ layout, the size limits and the `cargo clippy` / `cargo test` checks.
 
 ## Install
 
-DBZ is built from source with Rust's `cargo`, which works the same on every system.
+Download the installer for your system from the
+[**Releases** page](https://github.com/rizalda96/DBZ/releases/latest), install it and open
+DBZ. You don't need Rust or the source code.
+
+| System | File | How to install |
+|---|---|---|
+| Windows 10/11 (64-bit) | `…_x64-setup.exe` | Run it and follow the steps. DBZ then appears in the Start menu, and can be removed under Settings › Apps. |
+| macOS on Apple Silicon (M1/M2/M3/M4) | `.dmg` with `aarch64` in its name | Open the `.dmg` and drag **DBZ** onto **Applications**. |
+| macOS on Intel | `.dmg` with `x64` in its name | The same. |
+| Debian, Ubuntu, Linux Mint, Pop!_OS | `.deb` | `sudo apt install ./dbz_*.deb`, or double-click it. DBZ appears in the app menu. |
+| Any other Linux (Fedora, Arch, openSUSE, …) | `.AppImage` | `chmod +x dbz_*.AppImage`, then run it. Nothing gets installed. |
+
+### The first time you open it
+
+The installers aren't signed with a paid code-signing certificate yet, so Windows and
+macOS warn about an unknown app the first time:
+
+- **Windows** shows "Windows protected your PC". Click **More info**, then **Run anyway**.
+- **macOS** says DBZ "can't be opened" or "cannot be verified". Open **System Settings ›
+  Privacy & Security**, scroll down and click **Open Anyway** next to DBZ. On older
+  macOS versions, right-click DBZ in Applications and choose **Open** instead. To clear
+  the warning from a terminal, run `xattr -dr com.apple.quarantine /Applications/DBZ.app`.
+
+### PostgreSQL archive dumps
+
+The **Dump / Restore Archive File** menus run PostgreSQL's own `pg_dump` and
+`pg_restore`, so those have to be installed and on `PATH`. Everything else in DBZ works
+without them.
+
+- **Windows:** install PostgreSQL (or only its command line tools) and add its `bin`
+  folder, for example `C:\Program Files\PostgreSQL\17\bin`, to `PATH`.
+- **macOS:** run `brew install libpq`. Apps opened from Finder don't read your shell's
+  `PATH`, so also link the tools:
+  `sudo ln -s "$(brew --prefix libpq)/bin/pg_dump" "$(brew --prefix libpq)/bin/pg_restore" /usr/local/bin/`.
+- **Linux:** run `sudo apt install postgresql-client` (Debian/Ubuntu),
+  `sudo dnf install postgresql` (Fedora) or `sudo pacman -S postgresql` (Arch).
+
+Use the same major version as your server, or a newer one.
+
+## Build from source
+
+This section is for developers who want to change DBZ. Rust's `cargo` builds it the same
+way on every system.
 
 1. Install Rust with [rustup](https://rustup.rs/).
 2. Install the few system packages your OS needs (see the sections below).
@@ -153,9 +195,7 @@ EOF
 
 Make sure `~/.local/bin` is on your `PATH`.
 
-**5. Optional: PostgreSQL archive dumps.** Install the client tools: `sudo apt install postgresql-client`
-(Debian/Ubuntu), `sudo dnf install postgresql` (Fedora) or `sudo pacman -S postgresql`
-(Arch). They should be the same major version as your server, or newer.
+For archive dumps, see [PostgreSQL archive dumps](#postgresql-archive-dumps) above.
 
 ### macOS
 
@@ -189,16 +229,7 @@ cargo build --release
 sudo install -m755 target/release/dbz /usr/local/bin/dbz
 ```
 
-**5. Optional: PostgreSQL archive dumps.** With [Homebrew](https://brew.sh/), run
-`brew install libpq`, then add the tools to your shell's `PATH`:
-
-```sh
-echo 'export PATH="$(brew --prefix libpq)/bin:$PATH"' >> ~/.zshrc
-```
-
-Programs opened from Finder or the Dock don't read `~/.zshrc`. Start DBZ from a
-terminal when you want archive dumps, or link the tools into `/usr/local/bin`:
-`sudo ln -s "$(brew --prefix libpq)/bin/pg_dump" "$(brew --prefix libpq)/bin/pg_restore" /usr/local/bin/`.
+For archive dumps, see [PostgreSQL archive dumps](#postgresql-archive-dumps) above.
 
 ### Windows
 
@@ -212,8 +243,7 @@ To build with the `x86_64-pc-windows-gnu` toolchain instead, keep `patches/windo
 and `.cargo/config.toml`. They let that toolchain build on machines without an assembler
 for `dlltool`. With the MSVC toolchain you can remove them.
 
-For PostgreSQL archive dumps, add the `bin` folder of a PostgreSQL install (for example
-`C:\Program Files\PostgreSQL\17\bin`) to `PATH`.
+For archive dumps, see [PostgreSQL archive dumps](#postgresql-archive-dumps) above.
 
 ## Where DBZ keeps its files
 
@@ -240,3 +270,28 @@ cargo clippy -- -W clippy::too_many_lines -W clippy::too_many_arguments -W clipp
 `dbz --screenshot out.png` renders the window, saves a picture of it and exits.
 
 See [`CLAUDE.md`](CLAUDE.md) for the layout of the code and the rules changes follow.
+
+### Making a release
+
+The installers are built by GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml)),
+each on its own system: Windows, Linux (Ubuntu 22.04, so the Linux build also runs on
+older distributions) and macOS (Apple Silicon and Intel). To publish one:
+
+1. Set `version` in `Cargo.toml`, for example `0.2.0`, and commit.
+2. Push a matching tag: `git tag v0.2.0 && git push origin v0.2.0`.
+
+The workflow tests the code, builds it and attaches the `.exe`, `.dmg`, `.deb` and
+`.AppImage` files to the `v0.2.0` release. **Run workflow** on the Actions tab builds the
+same files as downloadable artifacts, without making a release.
+
+To build an installer for your own system by hand, use
+[cargo-packager](https://github.com/crabnebula-dev/cargo-packager). Its settings are
+under `[package.metadata.packager]` in `Cargo.toml`.
+
+```sh
+cargo install cargo-packager --locked
+cargo build --release
+cargo packager --release --formats nsis   # Windows: nsis · macOS: dmg · Linux: deb,appimage
+```
+
+The files land in `dist/`.

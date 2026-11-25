@@ -1,0 +1,112 @@
+# Builds the installers on each OS and attaches them to a GitHub release.
+#
+# Release: set `version` in Cargo.toml, commit, then push a matching tag:
+#   git tag v0.1.0 && git push origin v0.1.0
+# "Run workflow" on the Actions tab builds the same files as artifacts, without a release.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows (x64)
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            formats: nsis
+          # 22.04 rather than the newest Ubuntu: a binary built against an older glibc
+          # also runs on newer distributions.
+          - name: Linux (x64)
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            formats: deb,appimage
+          - name: macOS (Apple Silicon)
+            os: macos-latest
+            target: aarch64-apple-darwin
+            formats: dmg
+          - name: macOS (Intel)
+            os: macos-latest
+            target: x86_64-apple-darwin
+            formats: dmg
+    env:
+      # linuxdeploy (used for the AppImage) is itself an AppImage; CI has no FUSE.
+      APPIMAGE_EXTRACT_AND_RUN: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tag matches the Cargo.toml version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          version=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME doesn't match version $version in Cargo.toml"
+            exit 1
+          fi
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Linux libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev \
+            libxrandr-dev libxi-dev libgl1-mesa-dev file
+
+      - name: Test
+        # Tests run natively; the Intel macOS job cross-builds, so it skips them.
+        if: matrix.target != 'x86_64-apple-darwin'
+        run: cargo test --release --target ${{ matrix.target }}
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Install cargo-packager
+        run: cargo install cargo-packager --locked
+
+      - name: Package
+        run: cargo packager --release --target ${{ matrix.target }} --formats ${{ matrix.formats }}
+
+      # File names already carry the version and architecture, e.g.
+      # dbz_0.1.0_x64-setup.exe, dbz_0.1.0_amd64.deb, DBZ_0.1.0_aarch64.dmg.
+      - name: List the installers
+        shell: bash
+        run: ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dbz-${{ matrix.target }}
+          path: |
+            dist/*-setup.exe
+            dist/*.deb
+            dist/*.AppImage
+            dist/*.dmg
+          if-no-files-found: error
+
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*-setup.exe
+            dist/*.deb
+            dist/*.AppImage
+            dist/*.dmg
