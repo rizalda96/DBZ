@@ -131,6 +131,14 @@ impl Driver for PgDriver {
         postgres_parts::index_choices(self, db)
     }
 
+    fn ref_columns(&mut self, db: &str, schema: &str, table: &str) -> Result<Vec<String>, DbError> {
+        let name = match schema.trim() {
+            "" => table.to_string(),
+            s => format!("{}.{}", s, table),
+        };
+        Ok(self.columns(db, &name)?.into_iter().map(|f| f.name).collect())
+    }
+
     fn users(&mut self) -> Result<ResultSet, DbError> {
         self.first_set("", USERS_SQL)
     }

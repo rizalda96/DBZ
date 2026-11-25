@@ -14,6 +14,8 @@ pub(super) enum Cell<'a> {
     Text(&'a mut String),
     /// A drop-down of these values, worked out per row (e.g. the table's fields).
     Pick(&'a mut String, Vec<String>),
+    /// A drop-down with tick boxes; the value lists the ticked ones, "a, b".
+    Multi(&'a mut String, Vec<String>),
     /// A value from a fixed list.
     Choice(&'a mut String, &'static [&'static str]),
     Check(&'a mut bool),

@@ -28,9 +28,27 @@ pub struct IndexChoices {
     pub operators: Vec<String>,
     /// Tablespaces an index can be put in.
     pub tablespaces: Vec<String>,
+    /// Tables a foreign key can reference, by schema (PostgreSQL) or database (MySQL).
+    pub tables: Vec<SchemaTable>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct SchemaTable {
+    pub schema: String,
+    pub name: String,
 }
 
 impl IndexChoices {
+    /// Schemas (or databases) that have a table a foreign key can reference.
+    pub fn table_schemas(&self) -> Vec<String> {
+        names(self.tables.iter().map(|t| &t.schema))
+    }
+
+    /// Tables in `schema`; every schema's when it is empty.
+    pub fn tables_in(&self, schema: &str) -> Vec<String> {
+        names(self.tables.iter().filter(|t| in_schema(&t.schema, schema)).map(|t| &t.name))
+    }
+
     /// Collation names in `schema`; every schema's when it is empty.
     pub fn collations_in(&self, schema: &str) -> Vec<String> {
         names(self.collations.iter().filter(|c| in_schema(&c.schema, schema)).map(|c| &c.name))
@@ -61,7 +79,7 @@ fn names<'a>(it: impl Iterator<Item = &'a String>) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Collation, IndexChoices, OpClass};
+    use super::{Collation, IndexChoices, OpClass, SchemaTable};
 
     fn choices() -> IndexChoices {
         let op = |schema: &str, name: &str, method: &str| OpClass { schema: schema.into(), name: name.into(), method: method.into() };
@@ -71,7 +89,20 @@ mod tests {
             opclasses: vec![op("pg_catalog", "uuid_ops", "btree"), op("pg_catalog", "gin_trgm_ops", "gin"), op("public", "my_ops", "btree")],
             operators: vec![],
             tablespaces: vec![],
+            tables: vec![table("public", "master_site"), table("public", "master_transporter"), table("audit", "log")],
         }
+    }
+
+    fn table(schema: &str, name: &str) -> SchemaTable {
+        SchemaTable { schema: schema.into(), name: name.into() }
+    }
+
+    #[test]
+    fn referenced_tables_follow_the_schema() {
+        let c = choices();
+        assert_eq!(c.table_schemas(), ["audit", "public"]);
+        assert_eq!(c.tables_in("public"), ["master_site", "master_transporter"]);
+        assert_eq!(c.tables_in(""), ["log", "master_site", "master_transporter"]);
     }
 
     #[test]

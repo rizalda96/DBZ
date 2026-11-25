@@ -47,6 +47,7 @@ impl Dbz {
             Resp::Columns { db, table, result } => self.columns(cid, (&db, &table), result),
             Resp::TableParts { db, table, result } => self.table_parts(cid, (&db, &table), result),
             Resp::IndexChoices(db, r) => self.index_choices(cid, &db, r),
+            Resp::RefColumns { db, schema, table, result } => self.ref_columns(cid, &db, (&schema, &table), result),
             Resp::Ddl { db, table, result } => {
                 self.ws.ddl_cache.insert((cid, db, table), result);
             }
@@ -183,6 +184,21 @@ impl Dbz {
                     d.index_choices = choices.clone();
                 }
             }
+        }
+    }
+
+    /// Gives designer tabs of `db` the columns of a table their foreign keys reference.
+    fn ref_columns(&mut self, cid: u64, db: &str, (schema, table): (&str, &str), r: Result<Vec<String>, DbError>) {
+        let columns = r.unwrap_or_else(|e| {
+            self.status = format!("Could not read the columns of {}: {}", table, e);
+            vec![]
+        });
+        let tabs = self.ws.tabs.iter_mut().filter_map(|t| match t {
+            Tab::Design(d) if d.cid == cid && d.db == db => Some(d),
+            _ => None,
+        });
+        for d in tabs {
+            d.ref_columns.arrived(schema, table, columns.clone());
         }
     }
 

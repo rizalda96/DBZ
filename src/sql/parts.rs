@@ -80,6 +80,8 @@ pub struct DesignerCaps {
     pub index_collation_opclass: bool,
     /// CREATE INDEX CONCURRENTLY (PostgreSQL).
     pub index_concurrently: bool,
+    /// Foreign keys take MATCH FULL and DEFERRABLE (PostgreSQL).
+    pub fk_match_deferrable: bool,
     /// Exclusion constraints and rewrite rules (PostgreSQL); their tabs show only then.
     pub excludes_and_rules: bool,
     /// Storage parameters an index can take (PostgreSQL).
@@ -174,11 +176,18 @@ fn add_foreign_key(d: &dyn Dialect, table: &str, f: &ForeignKeyDef) -> String {
         target,
         column_list(d, &f.ref_columns)
     );
+    let extras = d.designer().fk_match_deferrable;
+    if extras && f.match_full {
+        s.push_str(" MATCH FULL");
+    }
     for (event, action) in [("DELETE", &f.on_delete), ("UPDATE", &f.on_update)] {
         // NO ACTION is what every server does without the clause.
         if let Some(a) = pick(action, &FK_ACTIONS).filter(|a| *a != "NO ACTION") {
             s.push_str(&format!(" ON {} {}", event, a));
         }
+    }
+    if extras && f.deferrable {
+        s.push_str(if f.deferred { " DEFERRABLE INITIALLY DEFERRED" } else { " DEFERRABLE INITIALLY IMMEDIATE" });
     }
     s
 }
@@ -249,7 +258,7 @@ pub(super) fn split_outside(text: &str, sep: impl Fn(char) -> bool) -> Vec<Strin
 #[cfg(test)]
 mod tests {
     use super::{column_list, parts_sql, PartsChange};
-    use crate::domain::{DbKind, IndexDef, TableParts, UniqueDef};
+    use crate::domain::{DbKind, ForeignKeyDef, IndexDef, TableParts, UniqueDef};
     use crate::sql::dialect_for;
 
     fn unique(name: &str, cols: &str) -> UniqueDef {
@@ -315,6 +324,27 @@ mod tests {
         new.indexes[0].storage.insert("fillfactor".into(), String::new());
         let sql = parts_sql(pg, &PartsChange { table: "t", new_table: "t", old: &old, new: &new });
         assert!(sql.drops.is_empty() && sql.creates.is_empty());
+    }
+
+    #[test]
+    fn foreign_key_match_and_deferrable_only_where_the_server_has_them() {
+        let fk = ForeignKeyDef {
+            name: "fk_site".into(),
+            columns: "id_site".into(),
+            ref_schema: "public".into(),
+            ref_table: "master_site".into(),
+            ref_columns: "id".into(),
+            on_delete: "CASCADE".into(),
+            on_update: "NO ACTION".into(),
+            match_full: true,
+            deferrable: true,
+            deferred: true,
+            ..Default::default()
+        };
+        let pg = super::add_foreign_key(dialect_for(DbKind::PostgreSql), "t", &fk);
+        assert_eq!(pg, "ALTER TABLE \"t\" ADD CONSTRAINT \"fk_site\" FOREIGN KEY (\"id_site\") REFERENCES \"public\".\"master_site\" (\"id\") MATCH FULL ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED");
+        let my = super::add_foreign_key(dialect_for(DbKind::MySql), "t", &fk);
+        assert_eq!(my, "ALTER TABLE `t` ADD CONSTRAINT `fk_site` FOREIGN KEY (`id_site`) REFERENCES `public`.`master_site` (`id`) ON DELETE CASCADE");
     }
 
     #[test]

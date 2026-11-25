@@ -31,6 +31,10 @@ pub trait Driver: Send {
     fn index_choices(&mut self, _db: &str) -> Result<IndexChoices, DbError> {
         Ok(IndexChoices::default())
     }
+
+    /// Column names of a table a foreign key may reference: `table` in `schema`
+    /// (PostgreSQL) or in database `schema` (MySQL); an empty `schema` means `db`'s own.
+    fn ref_columns(&mut self, db: &str, schema: &str, table: &str) -> Result<Vec<String>, DbError>;
     fn users(&mut self) -> Result<ResultSet, DbError>;
     fn dialect(&self) -> &'static dyn Dialect;
 

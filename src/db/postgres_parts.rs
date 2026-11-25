@@ -2,7 +2,7 @@
 
 use super::driver::{number, text, Driver};
 use super::DbError;
-use crate::domain::{CheckDef, Collation, ExcludeDef, ForeignKeyDef, IndexChoices, IndexDef, OpClass, Row, RuleDef, TableOptions, TableParts, TriggerDef, UniqueDef};
+use crate::domain::{CheckDef, Collation, ExcludeDef, ForeignKeyDef, IndexChoices, IndexDef, OpClass, Row, RuleDef, SchemaTable, TableOptions, TableParts, TriggerDef, UniqueDef};
 
 /// Indexes that don't back a constraint (those show under their own tab).
 const INDEXES_SQL: &str = "SELECT i.relname, am.amname, ix.indisunique, obj_description(i.oid, 'pg_class'), \
@@ -15,10 +15,14 @@ const INDEXES_SQL: &str = "SELECT i.relname, am.amname, ix.indisunique, obj_desc
      AND NOT EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conindid = ix.indexrelid AND c.conrelid = ix.indrelid) \
      ORDER BY i.relname";
 const TABLESPACES_SQL: &str = "SELECT spcname FROM pg_tablespace ORDER BY spcname";
+/// Tables (plain and partitioned) a foreign key can point at, outside the system schemas.
+const REF_TABLES_SQL: &str = "SELECT n.nspname, c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace \
+     WHERE c.relkind IN ('r','p') AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%' ORDER BY 1, 2";
 /// `conkey` / `confkey` as "a, b" in key order.
 const KEY_COLS: &str = "(SELECT string_agg(a.attname, ', ' ORDER BY k.n) FROM unnest(c.{key}) WITH ORDINALITY k(att, n) \
      JOIN pg_attribute a ON a.attrelid = c.{rel} AND a.attnum = k.att)";
-const FOREIGN_KEYS_SQL: &str = "SELECT c.conname, {cols}, rn.nspname, rc.relname, {ref_cols}, c.confdeltype, c.confupdtype, obj_description(c.oid, 'pg_constraint') \
+const FOREIGN_KEYS_SQL: &str = "SELECT c.conname, {cols}, rn.nspname, rc.relname, {ref_cols}, c.confdeltype, c.confupdtype, obj_description(c.oid, 'pg_constraint'), \
+     c.confmatchtype, c.condeferrable, c.condeferred \
      FROM pg_constraint c JOIN pg_class rc ON rc.oid = c.confrelid JOIN pg_namespace rn ON rn.oid = rc.relnamespace \
      WHERE c.conrelid = {reg}::regclass AND c.contype = 'f' ORDER BY c.conname";
 const UNIQUES_SQL: &str = "SELECT c.conname, {cols}, obj_description(c.oid, 'pg_constraint') \
@@ -91,6 +95,7 @@ pub(super) fn index_choices(d: &mut dyn Driver, db: &str) -> Result<IndexChoices
         opclasses: d.rows(db, OPCLASSES_SQL)?.iter().map(|r| OpClass { schema: text(&r[0]), name: text(&r[1]), method: text(&r[2]) }).collect(),
         operators: d.rows(db, OPERATORS_SQL)?.iter().map(|r| text(&r[0])).collect(),
         tablespaces: d.rows(db, TABLESPACES_SQL)?.iter().map(|r| text(&r[0])).collect(),
+        tables: d.rows(db, REF_TABLES_SQL)?.iter().map(|r| SchemaTable { schema: text(&r[0]), name: text(&r[1]) }).collect(),
     })
 }
 
@@ -183,6 +188,9 @@ fn foreign_key_def(r: &Row) -> ForeignKeyDef {
         on_delete: fk_action(&text(&r[5])),
         on_update: fk_action(&text(&r[6])),
         comment: text(&r[7]),
+        match_full: text(&r[8]) == "f",
+        deferrable: text(&r[9]) == "t",
+        deferred: text(&r[10]) == "t",
         orig_name: None,
     }
 }

@@ -5,7 +5,7 @@ use eframe::egui::{self, pos2, vec2, Rect, Sense, Stroke, Ui, UiBuilder};
 
 use super::parts_grid::Cell;
 use crate::ui::theme::pal;
-use crate::ui::widgets::{arrow, cell_text, forget_search, search_list, Arrow};
+use crate::ui::widgets::{arrow, cell_text, forget_search, multi_search_list, search_list, Arrow};
 
 pub(super) type CellKey = (((&'static str, u64), usize), usize);
 
@@ -42,6 +42,8 @@ pub(super) struct CellState {
 }
 
 const ARROW_W: f32 = 20.0;
+/// A tick-box list is at least this wide, so names fit next to the boxes.
+const MULTI_MIN_WIDTH: f32 = 200.0;
 
 pub(super) fn draw_cell(ui: &mut Ui, key: CellKey, cell: Cell, st: CellState) -> Hit {
     match cell {
@@ -51,6 +53,7 @@ pub(super) fn draw_cell(ui: &mut Ui, key: CellKey, cell: Cell, st: CellState) ->
             Hit::default()
         }
         Cell::Pick(s, options) => dropdown(ui, key, s, options.iter().map(String::as_str), st.active),
+        Cell::Multi(s, options) => multi_dropdown(ui, key, s, &options, st.active),
         Cell::Choice(s, options) => dropdown(ui, key, s, options.iter().copied(), st.active),
         Cell::Check(b) => {
             ui.add_space(8.0);
@@ -78,13 +81,7 @@ fn text_box(ui: &mut Ui, key: CellKey, s: &mut String, focus: bool) -> Hit {
 fn dropdown<'o>(ui: &mut Ui, key: CellKey, value: &mut String, options: impl Iterator<Item = &'o str>, active: bool) -> Hit {
     let cell = ui.max_rect();
     let resp = ui.interact(cell, egui::Id::unique(("dropdown", key)), Sense::click());
-    if active {
-        ui.painter().rect_stroke(cell.shrink(1.0), 0.0, Stroke::new(1.0, pal().focus_border), egui::StrokeKind::Inside);
-    }
-    cell_text(ui, &Some(value.clone()), pal().text);
-    if active || resp.hovered() {
-        arrow_mark(ui, arrow_rect(cell), resp.hovered());
-    }
+    frame_cell(ui, cell, value, (active, resp.hovered()));
     let search = resp.id.with("search");
     let popup = egui::Popup::menu(&resp).anchor(cell).width(cell.width()).close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside);
     let picked = match popup.show(|ui| search_list(ui, search, value, options)) {
@@ -99,6 +96,57 @@ fn dropdown<'o>(ui: &mut Ui, key: CellKey, value: &mut String, options: impl Ite
         *value = p;
     }
     Hit { touched: resp.clicked() || done, activate: resp.clicked().then_some(key.1), done, opened: None }
+}
+
+/// A drop-down with tick boxes: one click opens it, each tick adds or removes an entry
+/// and the list stays open until the user clicks elsewhere.
+fn multi_dropdown(ui: &mut Ui, key: CellKey, value: &mut String, options: &[String], active: bool) -> Hit {
+    let cell = ui.max_rect();
+    let resp = ui.interact(cell, egui::Id::unique(("multi", key)), Sense::click());
+    frame_cell(ui, cell, value, (active, resp.hovered()));
+    let search = resp.id.with("search");
+    let chosen = list_items(value);
+    let popup = egui::Popup::menu(&resp).anchor(cell).width(cell.width().max(MULTI_MIN_WIDTH)).close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside);
+    let toggled = match popup.show(|ui| multi_search_list(ui, search, &chosen, options.iter().map(String::as_str))) {
+        Some(shown) => shown.inner,
+        None => {
+            forget_search(ui, search);
+            None
+        }
+    };
+    if let Some(item) = &toggled {
+        *value = toggled_in(value, item);
+    }
+    Hit { touched: resp.clicked() || toggled.is_some(), activate: resp.clicked().then_some(key.1), done: false, opened: None }
+}
+
+/// The look shared by drop-down cells: focus border when active, the value, and the ▾
+/// while active or under the pointer.
+fn frame_cell(ui: &mut Ui, cell: Rect, value: &str, (active, hovered): (bool, bool)) {
+    if active {
+        ui.painter().rect_stroke(cell.shrink(1.0), 0.0, Stroke::new(1.0, pal().focus_border), egui::StrokeKind::Inside);
+    }
+    cell_text(ui, &Some(value.to_string()), pal().text);
+    if active || hovered {
+        arrow_mark(ui, arrow_rect(cell), hovered);
+    }
+}
+
+/// "a, b" → ["a", "b"].
+fn list_items(value: &str) -> Vec<String> {
+    value.split(',').map(str::trim).filter(|s| !s.is_empty()).map(str::to_string).collect()
+}
+
+/// `value` with `item` added at the end, or taken out if it was there.
+fn toggled_in(value: &str, item: &str) -> String {
+    let mut items = list_items(value);
+    match items.iter().position(|i| i == item) {
+        Some(at) => {
+            items.remove(at);
+        }
+        None => items.push(item.to_string()),
+    }
+    items.join(", ")
 }
 
 fn arrow_rect(cell: Rect) -> Rect {
@@ -127,4 +175,17 @@ fn editor(ui: &mut Ui, text: &str, selected: bool) -> Hit {
     }
     let opened = ui.put(button, egui::Button::new("…").min_size(vec2(22.0, 18.0))).on_hover_text("Edit").clicked();
     Hit { touched: opened, opened: opened.then_some(cell), ..Default::default() }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::toggled_in;
+
+    #[test]
+    fn ticking_adds_at_the_end_and_unticking_removes() {
+        assert_eq!(toggled_in("", "id_site"), "id_site");
+        assert_eq!(toggled_in("id_site", "id"), "id_site, id");
+        assert_eq!(toggled_in("id_site, id", "id_site"), "id");
+        assert_eq!(toggled_in(" a ,, b ", "c"), "a, b, c");
+    }
 }

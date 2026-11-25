@@ -84,8 +84,7 @@ fn foreign_keys(rows: &[Row]) -> Vec<ForeignKeyDef> {
                 ref_columns: ref_col,
                 on_delete: text(&r[5]),
                 on_update: text(&r[6]),
-                comment: String::new(),
-                orig_name: None,
+                ..Default::default()
             }),
         }
     }

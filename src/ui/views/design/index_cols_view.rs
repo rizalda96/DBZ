@@ -8,7 +8,7 @@ use super::index_cols_state::{ColsTarget, IndexColsEditor};
 use super::parts_grid::{grid, Cell, GridSpec};
 use super::DesignTab;
 use crate::domain::{IndexChoices, IndexColumn};
-use crate::sql::{index_column_ref, DesignerCaps, NULLS_ORDERS, SORT_ORDERS};
+use crate::sql::{DesignerCaps, NULLS_ORDERS, SORT_ORDERS};
 use crate::ui::icons::Icon;
 use crate::ui::widgets::{buttons, icon_btn, Choice};
 
@@ -18,7 +18,7 @@ fn anchor_id(tab: u64) -> egui::Id {
     egui::Id::unique(("ixcols_at", tab))
 }
 
-/// Opens the editor under the Fields cell it was opened from.
+/// Opens the editor under the Fields cell it was opened from (once; it can be moved after).
 pub(super) fn anchor_at(ui: &Ui, tab: u64, cell: Rect) {
     ui.data_mut(|d| d.insert_temp(anchor_id(tab), cell.left_bottom()));
 }
@@ -27,14 +27,19 @@ pub(super) fn anchor_at(ui: &Ui, tab: u64, cell: Rect) {
 pub(super) fn show(ui: &Ui, t: &mut DesignTab) {
     let d = t.dialect();
     let caps = d.designer();
-    let fields: Vec<String> = t.fields.iter().filter(|f| !f.name.trim().is_empty()).map(|f| index_column_ref(d, &f.name)).collect();
+    let fields = t.field_refs();
     let id = t.id;
     let Some(ed) = t.parts.cols.as_mut() else { return };
     let lists = Lists { fields: &fields, choices: &t.index_choices, method: ed.method.clone(), operators: matches!(ed.target, ColsTarget::Exclude(_)) };
     let mut choice = Choice::None;
-    let at: Pos2 = ui.data(|d| d.get_temp(anchor_id(id))).unwrap_or_else(|| ui.max_rect().left_top());
-    let panel = egui::Window::new("Index Fields").id(egui::Id::unique(("ixcols", id))).title_bar(false).collapsible(false).resizable(false);
-    panel.fixed_pos(at).fixed_size(SIZE).show(ui.ctx(), |ui| {
+    let title = if lists.operators { "Exclude Elements" } else { "Index Fields" };
+    let mut panel = egui::Window::new(title).id(egui::Id::unique(("ixcols", id))).collapsible(false).resizable(false).movable(true).fixed_size(SIZE);
+    // Placed under the Fields cell when it opens; from then on the user can drag it
+    // by its title bar and it stays where it was dropped.
+    if let Some(at) = ui.data_mut(|d| d.remove_temp::<Pos2>(anchor_id(id))) {
+        panel = panel.current_pos(at);
+    }
+    panel.show(ui.ctx(), |ui| {
         choice = body(ui, ed, (id, caps), &lists);
     });
     if choice.keep() {

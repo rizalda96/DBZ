@@ -36,6 +36,10 @@ pub(super) fn handle(d: &mut dyn Driver, cfg: &ConnConfig, req: Req) -> Resp {
             let r = d.index_choices(&db);
             Resp::IndexChoices(db, r)
         }
+        Req::RefColumns { db, schema, table } => {
+            let result = d.ref_columns(&db, &schema, &table);
+            Resp::RefColumns { db, schema, table, result }
+        }
         Req::Ddl { db, table, is_view } => {
             let result = d.ddl(&db, &table, is_view);
             Resp::Ddl { db, table, result }

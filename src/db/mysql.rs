@@ -4,7 +4,7 @@ use mysql::prelude::Queryable;
 
 use super::driver::{number, text, Driver};
 use super::{mysql_parts, DbError};
-use crate::domain::{Cell, ConnConfig, FieldDef, ResultSet, RoutineInfo, Row, TableInfo, TableParts};
+use crate::domain::{Cell, ConnConfig, FieldDef, IndexChoices, ResultSet, RoutineInfo, Row, SchemaTable, TableInfo, TableParts};
 use crate::sql::{Dialect, MySqlDialect};
 
 static DIALECT: MySqlDialect = MySqlDialect;
@@ -15,6 +15,9 @@ const COLUMNS_SQL: &str = "SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_
     FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = {db} AND TABLE_NAME = {table} ORDER BY ORDINAL_POSITION";
 const ROUTINES_SQL: &str = "SELECT ROUTINE_NAME, ROUTINE_TYPE, DTD_IDENTIFIER FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = {db} ORDER BY ROUTINE_NAME";
 const USERS_SQL: &str = "SELECT User, Host, plugin AS Plugin, account_locked AS Locked FROM mysql.user ORDER BY User, Host";
+/// Base tables of every user database: what a foreign key can reference.
+const REF_TABLES_SQL: &str = "SELECT TABLE_SCHEMA, TABLE_NAME FROM information_schema.TABLES WHERE TABLE_TYPE = 'BASE TABLE' \
+    AND TABLE_SCHEMA NOT IN ('mysql', 'sys', 'performance_schema', 'information_schema') ORDER BY TABLE_SCHEMA, TABLE_NAME";
 
 pub struct MySqlDriver {
     conn: mysql::Conn,
@@ -92,6 +95,18 @@ impl Driver for MySqlDriver {
     fn table_parts(&mut self, db: &str, table: &str) -> Result<TableParts, DbError> {
         let lits = (DIALECT.str_literal(db), DIALECT.str_literal(table));
         mysql_parts::table_parts(self, db, (&lits.0, &lits.1))
+    }
+
+    /// Only the tables a foreign key can reference; MySQL index columns have no
+    /// collations or operator classes to offer.
+    fn index_choices(&mut self, db: &str) -> Result<IndexChoices, DbError> {
+        let tables = self.rows(db, REF_TABLES_SQL)?.iter().map(|r| SchemaTable { schema: text(&r[0]), name: text(&r[1]) }).collect();
+        Ok(IndexChoices { tables, ..Default::default() })
+    }
+
+    fn ref_columns(&mut self, db: &str, schema: &str, table: &str) -> Result<Vec<String>, DbError> {
+        let in_db = if schema.trim().is_empty() { db } else { schema.trim() };
+        Ok(self.columns(in_db, table)?.into_iter().map(|f| f.name).collect())
     }
 
     fn users(&mut self) -> Result<ResultSet, DbError> {

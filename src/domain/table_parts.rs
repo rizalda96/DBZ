@@ -90,6 +90,11 @@ pub struct ForeignKeyDef {
     pub ref_columns: String,
     pub on_delete: String,
     pub on_update: String,
+    /// MATCH FULL rather than the default MATCH SIMPLE (PostgreSQL).
+    pub match_full: bool,
+    /// DEFERRABLE (PostgreSQL); `deferred` then says INITIALLY DEFERRED.
+    pub deferrable: bool,
+    pub deferred: bool,
     pub comment: String,
     pub orig_name: Option<String>,
 }

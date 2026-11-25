@@ -5,12 +5,13 @@ use eframe::egui::{self, RichText, Stroke, Ui};
 
 use super::index_cols_state::ColsTarget;
 use super::index_cols_view;
+use super::fk_view::{self, FkLists};
 use super::index_props_view;
 use super::parts_grid::{grid, Cell, GridSpec};
 use super::parts_state::PartKind;
 use super::DesignTab;
-use crate::domain::{CheckDef, ExcludeDef, ForeignKeyDef, IndexDef, RuleDef, TableOptions, TriggerDef, UniqueDef};
-use crate::sql::{DesignerCaps, OptionKind, OptionSpec, FK_ACTIONS, RULE_EVENTS};
+use crate::domain::{CheckDef, ExcludeDef, IndexDef, RuleDef, TableOptions, TriggerDef, UniqueDef};
+use crate::sql::{DesignerCaps, OptionKind, OptionSpec, RULE_EVENTS};
 use crate::ui::theme::pal;
 
 const FOR_EACH: [&str; 2] = ["ROW", "STATEMENT"];
@@ -28,6 +29,7 @@ pub(super) fn list(ui: &mut Ui, t: &mut DesignTab, k: PartKind) {
         PartKind::Index => index_props_view::panel(ui, t),
         PartKind::Trigger => trigger_panel(ui, t),
         PartKind::Rule => rule_panel(ui, t),
+        PartKind::ForeignKey if t.dialect().designer().fk_match_deferrable => fk_view::options_panel(ui, t),
         _ => {}
     }
     let caps = t.dialect().designer();
@@ -39,6 +41,8 @@ pub(super) fn list(ui: &mut Ui, t: &mut DesignTab, k: PartKind) {
 
 fn grid_for(ui: &mut Ui, t: &mut DesignTab, k: PartKind, caps: &'static DesignerCaps) {
     let id = (k.tab_label(), t.id);
+    let fields = if k == PartKind::ForeignKey { fk_view::prepare(t) } else { vec![] };
+    let fk_lists = FkLists { fields: &fields, choices: &t.index_choices, refs: &t.ref_columns, comments: caps.constraint_comments };
     let editor = &mut t.parts;
     // A copy, so the grid can borrow the selection and the list at the same time.
     let mut selected = editor.sel(k);
@@ -54,10 +58,7 @@ fn grid_for(ui: &mut Ui, t: &mut DesignTab, k: PartKind, caps: &'static Designer
                 index_cols_view::anchor_at(ui, id.1, cell);
             }
         }
-        PartKind::ForeignKey => {
-            let columns = [("Name", 170.0), ("Fields", 150.0), ("Referenced Schema", 140.0), ("Referenced Table", 150.0), ("Referenced Fields", 150.0), ("On Delete", 110.0), ("On Update", 110.0), ("Comment", 140.0)];
-            grid(ui, &GridSpec { id, columns: &columns }, &mut p.foreign_keys, sel, |f: &mut ForeignKeyDef| fk_cells(f, comments));
-        }
+        PartKind::ForeignKey => fk_view::fk_grid(ui, (id, sel), &mut p.foreign_keys, &fk_lists),
         PartKind::Unique => {
             let spec = GridSpec { id, columns: &[("Name", 220.0), ("Fields", 320.0), ("Comment", 200.0)] };
             grid(ui, &spec, &mut p.uniques, sel, |u: &mut UniqueDef| vec![Cell::Text(&mut u.name), Cell::Text(&mut u.columns), text_or_off(&mut u.comment, comments)]);
@@ -110,19 +111,6 @@ fn exclude_cells<'b>(e: &'b mut ExcludeDef, caps: &DesignerCaps) -> Vec<Cell<'b>
 
 fn rule_cells(r: &mut RuleDef) -> Vec<Cell<'_>> {
     vec![Cell::Text(&mut r.name), Cell::Choice(&mut r.event, &RULE_EVENTS), Cell::Check(&mut r.instead), Cell::Text(&mut r.condition), Cell::Check(&mut r.enabled), Cell::Text(&mut r.comment)]
-}
-
-fn fk_cells(f: &mut ForeignKeyDef, comments: bool) -> Vec<Cell<'_>> {
-    vec![
-        Cell::Text(&mut f.name),
-        Cell::Text(&mut f.columns),
-        Cell::Text(&mut f.ref_schema),
-        Cell::Text(&mut f.ref_table),
-        Cell::Text(&mut f.ref_columns),
-        Cell::Choice(&mut f.on_delete, &FK_ACTIONS),
-        Cell::Choice(&mut f.on_update, &FK_ACTIONS),
-        text_or_off(&mut f.comment, comments),
-    ]
 }
 
 fn check_cells<'b>(c: &'b mut CheckDef, caps: &DesignerCaps) -> Vec<Cell<'b>> {

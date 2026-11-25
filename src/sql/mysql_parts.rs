@@ -16,6 +16,7 @@ pub(super) static CAPS: DesignerCaps = DesignerCaps {
     index_sub_part: true,
     index_collation_opclass: false,
     index_concurrently: false,
+    fk_match_deferrable: false,
     excludes_and_rules: false,
     index_params: &[],
     index_placement: false,

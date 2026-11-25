@@ -1,8 +1,9 @@
 //! State of a table designer tab.
 
 use super::parts_state::{PartKind, PartsEditor};
+use super::ref_state::RefColumns;
 use crate::domain::{DbKind, FieldDef, IndexChoices, TableParts};
-use crate::sql::{dialect_for, parts_sql, DesignerCaps, Dialect, PartsChange, TableChange};
+use crate::sql::{dialect_for, index_column_ref, parts_sql, DesignerCaps, Dialect, PartsChange, TableChange};
 
 const SIZED_TYPES: [&str; 4] = ["varchar", "char", "decimal", "numeric"];
 
@@ -72,6 +73,8 @@ pub struct DesignTab {
     pub parts: PartsEditor,
     /// The server's schemas, collations and operator classes (empty until they arrive).
     pub index_choices: IndexChoices,
+    /// Columns of the tables the foreign keys reference.
+    pub ref_columns: RefColumns,
     pub loading: bool,
     pub saving: bool,
     pub error: Option<String>,
@@ -97,6 +100,7 @@ impl DesignTab {
             focus: None,
             parts: PartsEditor::default(),
             index_choices: IndexChoices::default(),
+            ref_columns: RefColumns::default(),
             loading: false,
             saving: false,
             error: None,
@@ -113,6 +117,13 @@ impl DesignTab {
 
     pub fn dialect(&self) -> &'static dyn Dialect {
         dialect_for(self.kind)
+    }
+
+    /// The table's named fields as column lists write them (odd names quoted), for
+    /// the drop-downs that pick fields.
+    pub fn field_refs(&self) -> Vec<String> {
+        let d = self.dialect();
+        self.fields.iter().filter(|f| !f.name.trim().is_empty()).map(|f| index_column_ref(d, &f.name)).collect()
     }
 
     /// The statements that would save the design (empty = nothing to save). Parts are

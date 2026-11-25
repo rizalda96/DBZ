@@ -26,6 +26,8 @@ pub enum Req {
     TableParts { db: String, table: String },
     /// Schemas, collations and operator classes for the index fields editor.
     IndexChoices(String),
+    /// Columns of a table a foreign key references, for the Referenced Fields drop-down.
+    RefColumns { db: String, schema: String, table: String },
     Ddl { db: String, table: String, is_view: bool },
     Query { tab: u64, db: String, sql: String },
     TableData { tab: u64, db: String, page: PageQuery },
@@ -60,6 +62,7 @@ pub enum Resp {
     Columns { db: String, table: String, result: Result<Vec<FieldDef>, DbError> },
     TableParts { db: String, table: String, result: Result<TableParts, DbError> },
     IndexChoices(String, Result<IndexChoices, DbError>),
+    RefColumns { db: String, schema: String, table: String, result: Result<Vec<String>, DbError> },
     Ddl { db: String, table: String, result: Result<String, DbError> },
     Query { tab: u64, results: Vec<ResultSet>, error: Option<(String, DbError)>, elapsed: Duration },
     TableData { tab: u64, result: Result<TablePage, DbError>, sql: String, elapsed: Duration },

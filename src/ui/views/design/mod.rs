@@ -1,6 +1,7 @@
 //! The table designer tab: fields, indexes, keys, checks, triggers, options, table
 //! comment and SQL preview.
 
+mod fk_view;
 mod grid;
 mod index_cols_state;
 mod index_cols_view;
@@ -9,6 +10,7 @@ mod parts_cells;
 mod parts_grid;
 mod parts_state;
 mod parts_view;
+mod ref_state;
 mod state;
 mod toolbar;
 
@@ -21,6 +23,7 @@ use eframe::egui::{self, FontId, RichText, Stroke, Ui};
 use crate::app::Act;
 use crate::ui::theme::pal;
 use crate::ui::widgets::sql_layouter;
+use crate::worker::Req;
 
 pub fn design_view(ui: &mut Ui, t: &mut DesignTab, acts: &mut Vec<Act>) {
     let save_key = ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::S));
@@ -35,6 +38,9 @@ pub fn design_view(ui: &mut Ui, t: &mut DesignTab, acts: &mut Vec<Act>) {
         DesignSub::Options => parts_view::options(ui, t),
         DesignSub::Comment => comment(ui, t),
         DesignSub::SqlPreview => sql_preview(ui, t),
+    }
+    for (schema, table) in t.ref_columns.take_requests() {
+        acts.push(Act::Send(t.cid, Req::RefColumns { db: t.db.clone(), schema, table }));
     }
 }
 
