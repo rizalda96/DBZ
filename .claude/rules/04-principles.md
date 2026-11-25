@@ -46,7 +46,7 @@ Rust tidak punya inheritance — jangan menirunya:
 - Validasi input di batas (dialog, parse config, argumen CLI) dan kembalikan error segera.
 - Gunakan `Result` + `?`. **Dilarang** `unwrap()` di kode non-test; `expect("alasan invariant")` hanya untuk invariant yang benar-benar tidak mungkin gagal (mis. aset PNG yang dibundel).
 - Jangan menelan error (`let _ = ...;`, `.ok()` tanpa alasan). Tampilkan ke user lewat dialog/status bar atau log.
-- Error baru memakai enum bertipe (`enum DbError { Connect(String), Query(String), ... }`) dengan `impl Display`, bukan `String` mentah. Kode lama yang memakai `Result<_, String>` dimigrasi saat disentuh.
+- Error database/file memakai `db::DbError` (`Connect`, `Query`, `Io`, `Invalid`) dengan `impl Display`, bukan `String` mentah. UI baru mengubahnya ke teks (`e.to_string()`) saat menampilkan.
 - Gunakan tipe untuk mencegah state invalid (newtype `ConnId(u64)`, enum alih-alih kombinasi `bool`).
 
 ## 8. Principle of Least Privilege

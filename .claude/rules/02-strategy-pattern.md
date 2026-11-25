@@ -6,49 +6,59 @@ yang tersebar di banyak fungsi.
 
 ## Di mana dipakai
 
-| Variasi | Trait (strategy) | Implementasi |
-|---|---|---|
-| Koneksi & query database | `Driver` | `MySqlDriver`, `PgDriver`, `SampleDriver` |
-| Sintaks SQL | `Dialect` | `MySqlDialect`, `PgDialect` |
-| Format export/import | `Exporter` / `Importer` | `CsvExporter`, `JsonExporter`, `SqlExporter`, `HtmlExporter` |
+| Variasi | Trait (strategy) | Implementasi | Factory (satu-satunya `match`) |
+|---|---|---|---|
+| Koneksi & query database | `db::Driver` | `MySqlDriver`, `PgDriver`, `SampleDriver` | `db::open_driver(cfg, sample)` |
+| Sintaks SQL | `sql::Dialect` | `MySqlDialect`, `PgDialect` | `sql::dialect_for(kind)` |
+| Format export | `transfer::Exporter` | `DelimitedExporter` (CSV/TSV), `JsonExporter`, `SqlExporter`, `HtmlExporter` | `ExportFormat::exporter()` |
 
-Kode saat ini masih memakai `enum Client { Sample, My, Pg }` di `backend.rs` dan parameter `pg: bool`
-di `sqlgen.rs`. Saat menyentuh bagian itu, ganti dengan trait di atas — jangan menambah cabang `is_pg` baru.
+Import baru punya satu format (CSV/teks) — **belum** ada trait `Importer` (YAGNI).
+Buat trait itu saat format import kedua benar-benar ditambahkan.
+
+## Aturan
+
+- Kode di luar strategy hanya mengenal trait (`&dyn Dialect`, `&mut dyn Driver`), tidak pernah tipe konkretnya.
+- Dilarang menambah `DbKind::is_pg()` atau cabang `if kind == PostgreSql` untuk **sintaks SQL** — tambahkan method di `Dialect`.
+- Perbedaan **tampilan** per jenis (warna ikon, label "Owner"/"Engine") boleh `match DbKind` di satu tempat di `ui`
+  (`ui::theme::kind_color`, `ui::panes::info`), bukan di `Dialect`.
+- `DbKind::is_builtin()` adalah fakta domain (sample engine), bukan dialek.
 
 ## Bentuk trait
 
 ```rust
-// db/mod.rs
+// db/driver.rs
 pub trait Driver: Send {
-    fn databases(&mut self) -> Result<Vec<String>, DbError>;
-    fn tables(&mut self, db: &str) -> Result<Vec<TableInfo>, DbError>;
     fn query(&mut self, db: &str, sql: &str) -> Result<Vec<ResultSet>, DbError>;
-    fn dialect(&self) -> &dyn Dialect;
+    fn tables(&mut self, db: &str) -> Result<Vec<TableInfo>, DbError>;
+    // ... databases, routines, columns, ddl, users
+    fn dialect(&self) -> &'static dyn Dialect;
+    fn ignores(&self, _stmt: &str) -> bool { false }        // default method
+    fn first_set(&mut self, db: &str, sql: &str) -> ...      // default method
 }
 
 // sql/dialect.rs
-pub trait Dialect: Send + Sync {
+pub trait Dialect: Sync {
     fn quote_ident(&self, name: &str) -> String;
-    fn literal(&self, v: &Cell) -> String;
-    fn column_def(&self, f: &FieldDef) -> String;
+    fn escape_str(&self, s: &str) -> String;
+    fn create_table(&self, ...) -> Vec<String>;
+    fn alter_table(&self, change: &TableChange) -> Vec<String>;
+    // ... literal()/str_literal() sebagai default method
 }
 ```
 
-- Satu **factory** memilih strategy berdasarkan `DbKind`, hanya di satu tempat:
-  `fn open_driver(cfg: &ConnConfig, ...) -> Result<Box<dyn Driver>, DbError>`.
-  Ini satu-satunya `match DbKind` untuk pemilihan driver.
-- Pemanggil hanya mengenal trait, tidak pernah tipe konkretnya.
-
 ## Static vs dynamic dispatch
 
-- `Box<dyn Trait>` bila strategy dipilih saat runtime (driver dari config user, format dari pilihan dialog).
+- `Box<dyn Trait>` / `&'static dyn Trait` bila strategy dipilih saat runtime (driver dari config user, format dari dialog).
 - Generic `<T: Trait>` bila tipe diketahui saat compile dan berada di jalur panas.
-- Jangan buat trait untuk sesuatu yang hanya punya satu implementasi dan tidak ada rencana kedua (YAGNI).
-  Enum dengan `match` di satu tempat sudah cukup untuk himpunan kecil yang tertutup (mis. `ThemePref`).
+- Jangan buat trait untuk sesuatu yang hanya punya satu implementasi (YAGNI).
+  Enum dengan `match` di satu tempat sudah cukup untuk himpunan kecil yang tertutup (mis. `ThemePref`, `ObjMode`).
 
 ## Menambah varian baru
 
-Menambah database/format baru = **tambah satu file implementasi + satu baris di factory**.
+- Database baru (mis. SQLite): file `db/sqlite.rs` (impl `Driver`) + `sql/sqlite.rs` (impl `Dialect`) + satu baris di
+  `open_driver` dan `dialect_for` + varian `DbKind`.
+- Format export baru: satu file di `transfer/` (impl `Exporter`) + varian `ExportFormat` + satu baris di `exporter()`.
+
 Jika perubahan memaksa mengedit banyak `match` di file lain, desain strategy-nya bocor — perbaiki dulu.
 
 ## Referensi

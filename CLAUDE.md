@@ -11,6 +11,11 @@ cargo fmt
 cargo clippy -- -W clippy::too_many_lines -W clippy::too_many_arguments -W clippy::excessive_nesting
 ```
 
+## Struktur singkat
+
+`domain` → `sql` (Dialect) → `db` (Driver, sample engine) → `transfer` (Exporter) → `worker` → `app` ↔ `ui`.
+Detail di `.claude/rules/01-architecture-modular-monolith.md`.
+
 ## Aturan
 
 Aturan coding dipisah per topik di `.claude/rules/` dan dimuat otomatis:

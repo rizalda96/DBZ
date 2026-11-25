@@ -6,12 +6,13 @@
 |---|---|---|---|
 | Entry point | `main.rs` | parse CLI, konfigurasi window | logika bisnis, UI |
 | Data/domain | `domain/` | struct/enum data, validasi murni | egui, driver DB, I/O |
-| Akses database | `db/` | koneksi, query, introspeksi | egui widget, teks SQL hasil generator selain via `Dialect` |
+| Akses database | `db/` | koneksi, query, introspeksi, engine sample | egui, teks SQL selain via `Dialect` |
 | Pembuatan SQL | `sql/` | quoting, DDL, split, beautify | I/O, koneksi |
 | Import/export | `transfer/` | baca/tulis file per format | widget UI |
-| Orkestrasi | `app/` | state global, dispatch `Act`, handle `Resp`, simpan settings | menggambar widget |
-| Tampilan | `ui/` | menggambar, membaca input, mendorong `Act` | query DB langsung, I/O file sinkron |
-| Tema & ikon | `ui/theme.rs`, `ui/icons.rs` | palet, style, painter ikon | logika state |
+| Background | `worker/` | thread per koneksi, `Req` → `Resp` | state app, egui selain `request_repaint` |
+| Orkestrasi | `app/` | state global, dispatch `Act`, handle `Resp`, simpan settings/file | menggambar widget |
+| Tampilan | `ui/` | menggambar, membaca input, mendorong `Act` | query DB, menulis file, mengubah state app |
+| Tema & ikon | `ui/theme.rs`, `ui/icons.rs`, `ui/style.rs` | palet, style, painter ikon | logika state |
 
 ## Helper: global vs khusus komponen
 
@@ -31,10 +32,11 @@ Komponen yang > 1 file menjadi folder:
 ```
 ui/views/data/
   mod.rs        # pub fn data_view(...) + re-export DataTab — satu-satunya pintu masuk
-  state.rs      # struct DataTab, RowState, method murni (dirty, change tracking)
-  toolbar.rs    # bagian toolbar
-  grid.rs       # grid sel + editing
-  helpers.rs    # helper khusus komponen ini
+  state.rs      # struct DataTab, RowState, CellEdit + method murni (dirty, change_statements)
+  toolbar.rs    # toolbar + baris filter WHERE
+  footer.rs     # tombol record + paging
+  grid.rs       # grid sel + editing + keyboard
+  cell_menu.rs  # menu klik kanan sel
 ```
 
 - State (struct) terpisah dari fungsi gambar.

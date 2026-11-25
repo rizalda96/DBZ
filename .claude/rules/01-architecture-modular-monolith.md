@@ -3,53 +3,53 @@
 DBZ adalah **satu binary** (monolith) yang dibagi ke modul-modul dengan batas tegas.
 Setiap modul punya satu tanggung jawab, API publik yang kecil, dan arah dependensi yang jelas.
 
-## Target struktur modul
+## Struktur modul
 
 ```
 src/
   main.rs              # entry point: parse argumen CLI, bangun viewport, jalankan app. Tidak ada logika lain.
   domain/              # tipe murni: ConnConfig, DbKind, ResultSet, FieldDef, TableInfo, Cell...
                        #   TIDAK boleh import egui, mysql, postgres, rfd.
-  db/                  # infrastruktur database
-    mod.rs             #   trait Driver + trait Dialect (lihat 02-strategy-pattern.md), re-export
-    worker.rs          #   thread worker + channel Req/Resp
-    mysql/  postgres/  sample/   # satu folder per driver (strategy)
-  sql/                 # pembuatan SQL: quoting, literal, DDL, split, beautify — via Dialect
-  transfer/            # import/export/dump: satu file per format (csv.rs, json.rs, sql.rs, html.rs)
-  app/                 # orkestrasi: state, Act dispatch, handler Resp, persistence settings
+  shared/              # helper global murni: fmt_time, now_string, fmt_bytes, sanitize, data_dir — tanpa egui
+  sql/                 # pembuatan teks SQL: trait Dialect + MySqlDialect/PgDialect, diff tabel,
+                       #   split_statements, beautify, insert_row/eq_condition
+  db/                  # akses database: trait Driver + MySqlDriver/PgDriver/SampleDriver, DbError
+    sample/            #   engine in-memory "Sample Data" (tokenizer, parser, select, dml, ddl, seed)
+  transfer/            # export/import/dump/run_file ke & dari file; trait Exporter per format
+  worker/              # thread per koneksi: protocol (Req/Resp/Purpose) + handler
+  app/                 # orkestrasi: state (Workspace), Act → handler, balasan worker, persistence
   ui/
     widgets/           # komponen UI global yang dipakai ulang (lihat 06-reuse-existing.md)
-    panes/  views/  dialogs/   # satu file/folder per komponen layar
-    theme.rs  icons.rs
-  shared/              # helper global murni (format waktu/bytes, sanitize path) — tanpa egui
+    panes/             # menu, ribbon, tree, objects, info, tab bar, status bar
+    views/{query,data,design}/   # satu folder per tab kerja: state.rs (tanpa egui) + file gambar
+    dialogs/           # alert, konfirmasi, wizard, editor koneksi
+    theme.rs  icons.rs  style.rs
 ```
-
-Struktur saat ini (`app.rs`, `views.rs`, `panes.rs`, `backend.rs` ...) **belum** sesuai.
-Migrasi dilakukan **bertahap**: saat menyentuh suatu bagian, pindahkan bagian itu ke modul targetnya.
-Jangan rewrite besar-besaran kecuali user memintanya.
 
 ## Arah dependensi (wajib)
 
 ```
-main → app → ui ─┐
-          │      ├→ domain ← shared
-          └→ db ─┘   ↑
-             sql ────┘
-             transfer → db, sql, domain
+main → app → worker → transfer → db → sql → domain
+        │       └────────────────┘     └──→ shared
+        └──→ ui ──→ (app::state, app::actions), sql, domain, shared
 ```
 
 - `domain` dan `shared` tidak bergantung pada modul lain di crate.
-- `ui` tidak memanggil driver database secara langsung; ia mengirim `Act`/`Req` lewat `app`.
-- `db` tidak tahu apa pun tentang egui (kecuali `egui::Context` untuk `request_repaint`, dibungkus di `worker.rs`).
-- Contoh pelanggaran yang ada sekarang: `DbKind::color()` di `model.rs` mengembalikan `egui::Color32`.
-  Warna milik UI → pindahkan ke `ui/theme.rs` (mis. `fn kind_color(DbKind) -> Color32`) saat file itu disentuh.
+- `sql` hanya bergantung pada `domain`. `db` pada `sql` + `domain` (+ `shared`).
+- `transfer` memakai `db::Driver`; `worker` memakai `db` + `transfer`. `db` tidak tahu `worker`.
+- `ui` **hanya** membaca model (`app::Workspace`, `ConnState`, `Tab`, …) dan mendorong pesan
+  (`app::Act`). UI tidak memanggil driver, tidak menulis file, tidak menyimpan setting.
+  Satu-satunya I/O di UI adalah file picker (`rfd`) di dialog.
+- `app` satu-satunya yang mengubah state, mengirim `Req` ke worker, dan menulis file.
 
 ## Batas modul (boundary)
 
 - Setiap modul folder punya `mod.rs` sebagai **facade**: hanya re-export yang memang dipakai di luar.
-- Dilarang `use crate::db::mysql::internal_fn` dari luar `db`. Akses lewat API facade `crate::db::...`.
+- Dilarang `use crate::db::mysql::...` dari luar `db`. Akses lewat `crate::db::{Driver, open_driver, ...}`.
 - Dilarang glob import lintas modul (`use crate::app::*;`). Import nama secara eksplisit.
-- Komunikasi antar modul lewat tipe di `domain` atau enum pesan (`Req`, `Resp`, `Act`) — bukan berbagi state mutable.
+- Komunikasi antar modul lewat tipe di `domain` atau pesan (`Req`, `Resp`, `Act`) — bukan berbagi state mutable.
+- Handler `app` dipisah per concern sebagai beberapa blok `impl Dbz` (`conn_actions.rs`, `db_actions.rs`,
+  `tab_actions.rs`, `file_actions.rs`, `confirm.rs`, `replies.rs`, `exec_replies.rs`); `dispatch.rs` hanya routing.
 
 ## Kapan memecah jadi workspace crate
 
