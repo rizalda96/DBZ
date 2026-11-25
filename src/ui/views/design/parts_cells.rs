@@ -4,6 +4,7 @@
 use eframe::egui::{self, pos2, vec2, Rect, Sense, Stroke, Ui, UiBuilder};
 
 use super::parts_grid::Cell;
+use super::tick_state::list_items;
 use crate::ui::theme::pal;
 use crate::ui::widgets::{arrow, cell_text, forget_search, multi_search_list, search_list, Arrow};
 
@@ -60,6 +61,10 @@ pub(super) fn draw_cell(ui: &mut Ui, key: CellKey, cell: Cell, st: CellState) ->
             Hit { touched: ui.checkbox(b, "").clicked(), ..Default::default() }
         }
         Cell::Editor(text) => editor(ui, text, st.selected),
+        Cell::Label(text) => {
+            cell_text(ui, &Some(text.to_string()), pal().text);
+            Hit::default()
+        }
         Cell::Off => Hit::default(),
     }
 }
@@ -130,11 +135,6 @@ fn frame_cell(ui: &mut Ui, cell: Rect, value: &str, (active, hovered): (bool, bo
     if active || hovered {
         arrow_mark(ui, arrow_rect(cell), hovered);
     }
-}
-
-/// "a, b" → ["a", "b"].
-fn list_items(value: &str) -> Vec<String> {
-    value.split(',').map(str::trim).filter(|s| !s.is_empty()).map(str::to_string).collect()
 }
 
 /// `value` with `item` added at the end, or taken out if it was there.

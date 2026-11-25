@@ -1,7 +1,9 @@
 //! The table designer tab: fields, indexes, keys, checks, triggers, options, table
 //! comment and SQL preview.
 
+mod cell_window;
 mod fk_view;
+mod form_rows;
 mod grid;
 mod index_cols_state;
 mod index_cols_view;
@@ -12,7 +14,9 @@ mod parts_state;
 mod parts_view;
 mod ref_state;
 mod state;
+mod tick_state;
 mod toolbar;
+mod unique_view;
 
 pub use state::DesignTab;
 

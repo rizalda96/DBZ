@@ -16,7 +16,7 @@ pub(super) static CAPS: DesignerCaps = DesignerCaps {
     index_sub_part: false,
     index_collation_opclass: true,
     index_concurrently: true,
-    fk_match_deferrable: true,
+    constraint_options: true,
     excludes_and_rules: true,
     index_params: &[
         IndexParamSpec { key: "fillfactor", label: "Fill Factor (%)", values: &[], methods: &["btree", "hash", "gist", "spgist"] },

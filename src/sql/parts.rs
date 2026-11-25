@@ -80,8 +80,9 @@ pub struct DesignerCaps {
     pub index_collation_opclass: bool,
     /// CREATE INDEX CONCURRENTLY (PostgreSQL).
     pub index_concurrently: bool,
-    /// Foreign keys take MATCH FULL and DEFERRABLE (PostgreSQL).
-    pub fk_match_deferrable: bool,
+    /// Constraint options (PostgreSQL): foreign keys take MATCH FULL, uniques a
+    /// tablespace and fill factor, and both DEFERRABLE.
+    pub constraint_options: bool,
     /// Exclusion constraints and rewrite rules (PostgreSQL); their tabs show only then.
     pub excludes_and_rules: bool,
     /// Storage parameters an index can take (PostgreSQL).
@@ -155,7 +156,28 @@ fn commented(d: &dyn Dialect, table: &str, (name, comment): (&str, &str), sql: S
 }
 
 fn add_unique(d: &dyn Dialect, table: &str, u: &UniqueDef) -> String {
-    format!("ALTER TABLE {} ADD CONSTRAINT {} UNIQUE ({})", d.quote_ident(table), d.quote_ident(&u.name), column_list(d, &u.columns))
+    let mut s = format!("ALTER TABLE {} ADD CONSTRAINT {} UNIQUE ({})", d.quote_ident(table), d.quote_ident(&u.name), column_list(d, &u.columns));
+    if !d.designer().constraint_options {
+        return s;
+    }
+    // A fill factor PostgreSQL wouldn't take is left out rather than sent.
+    if let Some(ff) = u.fill_factor.trim().parse::<u8>().ok().filter(|n| (10..=100).contains(n)) {
+        s.push_str(&format!(" WITH (fillfactor = {})", ff));
+    }
+    if !u.tablespace.trim().is_empty() {
+        s.push_str(&format!(" USING INDEX TABLESPACE {}", d.quote_ident(u.tablespace.trim())));
+    }
+    s.push_str(deferrable(u.deferrable, u.deferred));
+    s
+}
+
+/// The DEFERRABLE clause of a constraint; empty when it isn't deferrable.
+fn deferrable(deferrable: bool, deferred: bool) -> &'static str {
+    match (deferrable, deferred) {
+        (false, _) => "",
+        (true, false) => " DEFERRABLE INITIALLY IMMEDIATE",
+        (true, true) => " DEFERRABLE INITIALLY DEFERRED",
+    }
 }
 
 fn add_check(d: &dyn Dialect, table: &str, c: &CheckDef) -> String {
@@ -176,7 +198,7 @@ fn add_foreign_key(d: &dyn Dialect, table: &str, f: &ForeignKeyDef) -> String {
         target,
         column_list(d, &f.ref_columns)
     );
-    let extras = d.designer().fk_match_deferrable;
+    let extras = d.designer().constraint_options;
     if extras && f.match_full {
         s.push_str(" MATCH FULL");
     }
@@ -186,8 +208,8 @@ fn add_foreign_key(d: &dyn Dialect, table: &str, f: &ForeignKeyDef) -> String {
             s.push_str(&format!(" ON {} {}", event, a));
         }
     }
-    if extras && f.deferrable {
-        s.push_str(if f.deferred { " DEFERRABLE INITIALLY DEFERRED" } else { " DEFERRABLE INITIALLY IMMEDIATE" });
+    if extras {
+        s.push_str(deferrable(f.deferrable, f.deferred));
     }
     s
 }
@@ -345,6 +367,16 @@ mod tests {
         assert_eq!(pg, "ALTER TABLE \"t\" ADD CONSTRAINT \"fk_site\" FOREIGN KEY (\"id_site\") REFERENCES \"public\".\"master_site\" (\"id\") MATCH FULL ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED");
         let my = super::add_foreign_key(dialect_for(DbKind::MySql), "t", &fk);
         assert_eq!(my, "ALTER TABLE `t` ADD CONSTRAINT `fk_site` FOREIGN KEY (`id_site`) REFERENCES `public`.`master_site` (`id`) ON DELETE CASCADE");
+    }
+
+    #[test]
+    fn unique_options_only_where_the_server_has_them() {
+        let u = UniqueDef { tablespace: "fast".into(), fill_factor: "70".into(), deferrable: true, ..unique("uq", "id_transporter, id_site") };
+        let pg = super::add_unique(dialect_for(DbKind::PostgreSql), "t", &u);
+        assert_eq!(pg, "ALTER TABLE \"t\" ADD CONSTRAINT \"uq\" UNIQUE (\"id_transporter\", \"id_site\") WITH (fillfactor = 70) USING INDEX TABLESPACE \"fast\" DEFERRABLE INITIALLY IMMEDIATE");
+        let odd = UniqueDef { fill_factor: "5); DROP".into(), deferrable: false, ..u.clone() };
+        assert_eq!(super::add_unique(dialect_for(DbKind::PostgreSql), "t", &odd), "ALTER TABLE \"t\" ADD CONSTRAINT \"uq\" UNIQUE (\"id_transporter\", \"id_site\") USING INDEX TABLESPACE \"fast\"");
+        assert_eq!(super::add_unique(dialect_for(DbKind::MySql), "t", &u), "ALTER TABLE `t` ADD CONSTRAINT `uq` UNIQUE (`id_transporter`, `id_site`)");
     }
 
     #[test]

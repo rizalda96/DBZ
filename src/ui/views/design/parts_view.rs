@@ -3,14 +3,16 @@
 
 use eframe::egui::{self, RichText, Stroke, Ui};
 
+use super::cell_window::anchor_at;
+use super::fk_view::{self, FkLists};
 use super::index_cols_state::ColsTarget;
 use super::index_cols_view;
-use super::fk_view::{self, FkLists};
 use super::index_props_view;
 use super::parts_grid::{grid, Cell, GridSpec};
 use super::parts_state::PartKind;
+use super::unique_view;
 use super::DesignTab;
-use crate::domain::{CheckDef, ExcludeDef, IndexDef, RuleDef, TableOptions, TriggerDef, UniqueDef};
+use crate::domain::{CheckDef, ExcludeDef, IndexDef, RuleDef, TableOptions, TriggerDef};
 use crate::sql::{DesignerCaps, OptionKind, OptionSpec, RULE_EVENTS};
 use crate::ui::theme::pal;
 
@@ -29,19 +31,25 @@ pub(super) fn list(ui: &mut Ui, t: &mut DesignTab, k: PartKind) {
         PartKind::Index => index_props_view::panel(ui, t),
         PartKind::Trigger => trigger_panel(ui, t),
         PartKind::Rule => rule_panel(ui, t),
-        PartKind::ForeignKey if t.dialect().designer().fk_match_deferrable => fk_view::options_panel(ui, t),
+        PartKind::ForeignKey if t.dialect().designer().constraint_options => fk_view::options_panel(ui, t),
+        PartKind::Unique if t.dialect().designer().constraint_options => unique_view::options_panel(ui, t),
         _ => {}
     }
     let caps = t.dialect().designer();
     egui::CentralPanel::default().frame(egui::Frame::new().fill(pal().surface)).show(ui, |ui| grid_for(ui, t, k, caps));
-    if matches!(k, PartKind::Index | PartKind::Exclude) {
-        index_cols_view::show(ui, t);
+    match k {
+        PartKind::Index | PartKind::Exclude => index_cols_view::show(ui, t),
+        PartKind::Unique => unique_view::show_ticks(ui, t),
+        _ => {}
     }
 }
 
 fn grid_for(ui: &mut Ui, t: &mut DesignTab, k: PartKind, caps: &'static DesignerCaps) {
     let id = (k.tab_label(), t.id);
-    let fields = if k == PartKind::ForeignKey { fk_view::prepare(t) } else { vec![] };
+    if k == PartKind::ForeignKey {
+        fk_view::want_ref_columns(t);
+    }
+    let fields = t.field_refs();
     let fk_lists = FkLists { fields: &fields, choices: &t.index_choices, refs: &t.ref_columns, comments: caps.constraint_comments };
     let editor = &mut t.parts;
     // A copy, so the grid can borrow the selection and the list at the same time.
@@ -55,13 +63,15 @@ fn grid_for(ui: &mut Ui, t: &mut DesignTab, k: PartKind, caps: &'static Designer
             let opened = grid(ui, &GridSpec { id, columns: &columns }, &mut p.indexes, sel, |i: &mut IndexDef| index_cells(i, caps));
             if let Some((i, cell)) = opened {
                 editor.open_cols(ColsTarget::Index(i));
-                index_cols_view::anchor_at(ui, id.1, cell);
+                anchor_at(ui, index_cols_view::window_key(id.1), cell);
             }
         }
         PartKind::ForeignKey => fk_view::fk_grid(ui, (id, sel), &mut p.foreign_keys, &fk_lists),
         PartKind::Unique => {
-            let spec = GridSpec { id, columns: &[("Name", 220.0), ("Fields", 320.0), ("Comment", 200.0)] };
-            grid(ui, &spec, &mut p.uniques, sel, |u: &mut UniqueDef| vec![Cell::Text(&mut u.name), Cell::Text(&mut u.columns), text_or_off(&mut u.comment, comments)]);
+            if let Some((i, cell)) = unique_view::unique_grid(ui, (id, sel), &mut p.uniques, comments) {
+                editor.open_ticks(i, &fields);
+                anchor_at(ui, unique_view::window_key(id.1), cell);
+            }
         }
         PartKind::Check => {
             let spec = GridSpec { id, columns: &[("Name", 200.0), ("Expression", 360.0), ("No Inherit", 80.0), ("Comment", 160.0)] };
@@ -72,7 +82,7 @@ fn grid_for(ui: &mut Ui, t: &mut DesignTab, k: PartKind, caps: &'static Designer
             let opened = grid(ui, &spec, &mut p.excludes, sel, |e: &mut ExcludeDef| exclude_cells(e, caps));
             if let Some((i, cell)) = opened {
                 editor.open_cols(ColsTarget::Exclude(i));
-                index_cols_view::anchor_at(ui, id.1, cell);
+                anchor_at(ui, index_cols_view::window_key(id.1), cell);
             }
         }
         PartKind::Rule => {

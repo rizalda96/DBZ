@@ -103,6 +103,13 @@ pub struct ForeignKeyDef {
 pub struct UniqueDef {
     pub name: String,
     pub columns: String,
+    /// Tablespace of the backing index (PostgreSQL); empty = the default.
+    pub tablespace: String,
+    /// Fill factor (%) of the backing index (PostgreSQL); empty = the default.
+    pub fill_factor: String,
+    /// DEFERRABLE (PostgreSQL); `deferred` then says INITIALLY DEFERRED.
+    pub deferrable: bool,
+    pub deferred: bool,
     pub comment: String,
     pub orig_name: Option<String>,
 }

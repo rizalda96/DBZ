@@ -1,6 +1,7 @@
 //! The designer's index, key, check and trigger lists and the table options; no egui.
 
 use super::index_cols_state::{ColsTarget, IndexColsEditor};
+use super::tick_state::TickEditor;
 use crate::domain::{CheckDef, ExcludeDef, ForeignKeyDef, IndexDef, RuleDef, TableParts, TriggerDef, UniqueDef};
 use crate::sql::{DesignerCaps, Dialect};
 
@@ -63,6 +64,8 @@ pub struct PartsEditor {
     pub loading: bool,
     /// The index fields editor, while it is open.
     pub cols: Option<IndexColsEditor>,
+    /// The unique fields editor, while it is open.
+    pub ticks: Option<TickEditor>,
 }
 
 impl PartsEditor {
@@ -128,8 +131,9 @@ impl PartsEditor {
         self.orig = parts.clone();
         self.parts = parts;
         self.loading = false;
-        // Its index row may be gone now.
+        // The rows they edit may be gone now.
         self.cols = None;
+        self.ticks = None;
         for k in PartKind::ALL {
             let len = self.len(k);
             let sel = self.sel_mut(k);
@@ -147,6 +151,20 @@ impl PartsEditor {
             ColsTarget::Exclude(i) => p.excludes.get(i).map(|x| (&x.elements, &x.method)),
         };
         self.cols = source.map(|(columns, method)| IndexColsEditor::open(target, columns, method));
+    }
+
+    /// Opens the unique fields editor on unique `i`, listing the table's `fields`.
+    pub fn open_ticks(&mut self, i: usize, fields: &[String]) {
+        self.ticks = self.parts.uniques.get(i).map(|u| TickEditor::open(i, &u.columns, fields));
+    }
+
+    /// Closes the unique fields editor; with `ok`, writes the ticked fields back.
+    pub fn close_ticks(&mut self, ok: bool) {
+        let Some(ed) = self.ticks.take() else { return };
+        let Some(text) = ok.then(|| ed.result()).flatten() else { return };
+        if let Some(u) = self.parts.uniques.get_mut(ed.target) {
+            u.columns = text;
+        }
     }
 
     /// Closes the fields editor; with `ok`, writes its rows back where they came from.
@@ -203,6 +221,21 @@ mod tests {
         e.cols.as_mut().expect("just opened").rows[0].name = "a".into();
         e.close_cols(false, pg);
         assert!(e.cols.is_none() && e.parts.indexes[0].columns.is_empty());
+    }
+
+    #[test]
+    fn unique_fields_editor_writes_back_on_ok_only() {
+        let mut e = PartsEditor::default();
+        e.add(PartKind::Unique);
+        let fields = ["id".to_string(), "code".to_string()];
+        e.open_ticks(0, &fields);
+        e.ticks.as_mut().expect("just opened").rows[1].on = true;
+        e.close_ticks(false);
+        assert_eq!(e.parts.uniques[0].columns, "");
+        e.open_ticks(0, &fields);
+        e.ticks.as_mut().expect("just opened").rows[1].on = true;
+        e.close_ticks(true);
+        assert_eq!((e.parts.uniques[0].columns.as_str(), e.ticks.is_none()), ("code", true));
     }
 
     #[test]

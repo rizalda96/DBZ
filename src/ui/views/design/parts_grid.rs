@@ -21,6 +21,8 @@ pub(super) enum Cell<'a> {
     Check(&'a mut bool),
     /// Read-only text with a "…" button that opens an editor; the grid reports the click.
     Editor(&'a str),
+    /// Read-only text.
+    Label(&'a str),
     /// A property this server doesn't have.
     Off,
 }

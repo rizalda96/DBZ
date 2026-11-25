@@ -25,8 +25,11 @@ const FOREIGN_KEYS_SQL: &str = "SELECT c.conname, {cols}, rn.nspname, rc.relname
      c.confmatchtype, c.condeferrable, c.condeferred \
      FROM pg_constraint c JOIN pg_class rc ON rc.oid = c.confrelid JOIN pg_namespace rn ON rn.oid = rc.relnamespace \
      WHERE c.conrelid = {reg}::regclass AND c.contype = 'f' ORDER BY c.conname";
-const UNIQUES_SQL: &str = "SELECT c.conname, {cols}, obj_description(c.oid, 'pg_constraint') \
-     FROM pg_constraint c WHERE c.conrelid = {reg}::regclass AND c.contype = 'u' ORDER BY c.conname";
+/// Tablespace and fill factor come from the index behind the constraint.
+const UNIQUES_SQL: &str = "SELECT c.conname, {cols}, obj_description(c.oid, 'pg_constraint'), COALESCE(ts.spcname, ''), \
+     COALESCE((SELECT substring(o from 'fillfactor=(.*)') FROM unnest(i.reloptions) o WHERE o LIKE 'fillfactor=%'), ''), c.condeferrable, c.condeferred \
+     FROM pg_constraint c LEFT JOIN pg_class i ON i.oid = c.conindid LEFT JOIN pg_tablespace ts ON ts.oid = i.reltablespace \
+     WHERE c.conrelid = {reg}::regclass AND c.contype = 'u' ORDER BY c.conname";
 const CHECKS_SQL: &str = "SELECT c.conname, pg_get_expr(c.conbin, c.conrelid), c.connoinherit, obj_description(c.oid, 'pg_constraint') \
      FROM pg_constraint c WHERE c.conrelid = {reg}::regclass AND c.contype = 'c' ORDER BY c.conname";
 const TRIGGERS_SQL: &str = "SELECT t.tgname, t.tgtype, t.tgenabled <> 'D', \
@@ -77,7 +80,7 @@ pub(super) fn table_parts(d: &mut dyn Driver, db: &str, reg: &str) -> Result<Tab
     let parts = TableParts {
         indexes: d.rows(db, &sql(INDEXES_SQL))?.iter().map(index_def).collect(),
         foreign_keys: d.rows(db, &sql(FOREIGN_KEYS_SQL))?.iter().map(foreign_key_def).collect(),
-        uniques: d.rows(db, &sql(UNIQUES_SQL))?.iter().map(|r| UniqueDef { name: text(&r[0]), columns: text(&r[1]), comment: text(&r[2]), orig_name: None }).collect(),
+        uniques: d.rows(db, &sql(UNIQUES_SQL))?.iter().map(unique_def).collect(),
         checks: d.rows(db, &sql(CHECKS_SQL))?.iter().map(check_def).collect(),
         excludes: d.rows(db, &sql(EXCLUDES_SQL))?.iter().map(exclude_def).collect(),
         rules: d.rows(db, &sql(RULES_SQL))?.iter().map(rule_def).collect(),
@@ -191,6 +194,19 @@ fn foreign_key_def(r: &Row) -> ForeignKeyDef {
         match_full: text(&r[8]) == "f",
         deferrable: text(&r[9]) == "t",
         deferred: text(&r[10]) == "t",
+        orig_name: None,
+    }
+}
+
+fn unique_def(r: &Row) -> UniqueDef {
+    UniqueDef {
+        name: text(&r[0]),
+        columns: text(&r[1]),
+        comment: text(&r[2]),
+        tablespace: text(&r[3]),
+        fill_factor: text(&r[4]),
+        deferrable: text(&r[5]) == "t",
+        deferred: text(&r[6]) == "t",
         orig_name: None,
     }
 }

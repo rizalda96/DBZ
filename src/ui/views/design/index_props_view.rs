@@ -8,9 +8,9 @@ use super::DesignTab;
 use crate::domain::IndexDef;
 use crate::sql::{DesignerCaps, IndexParamSpec};
 use crate::ui::theme::pal;
-use crate::ui::widgets::{buttons, forget_search, search_list, win, Choice};
+use crate::ui::widgets::{buttons, win, Choice};
 
-const FIELD_WIDTH: f32 = 370.0;
+use super::form_rows::{combo, FIELD_WIDTH};
 
 /// Draws the panel (and the predicate editor while it is open).
 pub(super) fn panel(ui: &mut Ui, t: &mut DesignTab) {
@@ -75,21 +75,6 @@ fn param_row(ui: &mut Ui, id: u64, p: &IndexParamSpec, ix: &mut IndexDef) {
     }
 }
 
-/// A searchable drop-down led by an empty entry; true when a value was picked.
-fn combo(ui: &mut Ui, salt: impl std::hash::Hash + std::fmt::Debug, value: &mut String, options: &[String]) -> bool {
-    // Its own search text, next to the combo's id.
-    let search = ui.scope_id().with(("combo_search", &salt));
-    let combo = egui::ComboBox::from_id_salt(salt).selected_text(value.clone()).width(FIELD_WIDTH);
-    let entries = std::iter::once("").chain(options.iter().map(String::as_str));
-    let shown = combo.close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside).show_ui(ui, |ui| search_list(ui, search, value, entries));
-    let Some(picked) = shown.inner else {
-        forget_search(ui, search);
-        return false;
-    };
-    let Some(p) = picked else { return false };
-    *value = p;
-    true
-}
 
 
 /// Egui memory key of the open predicate editor; holds the text it was opened with.
