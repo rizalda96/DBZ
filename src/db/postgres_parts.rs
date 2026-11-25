@@ -7,11 +7,14 @@ use crate::domain::{CheckDef, Collation, ExcludeDef, ForeignKeyDef, IndexChoices
 /// Indexes that don't back a constraint (those show under their own tab).
 const INDEXES_SQL: &str = "SELECT i.relname, am.amname, ix.indisunique, obj_description(i.oid, 'pg_class'), \
      (SELECT string_agg(pg_get_indexdef(ix.indexrelid, k, true) || CASE WHEN (ix.indoption[k - 1] & 1) = 1 THEN ' DESC' ELSE '' END, ', ' ORDER BY k) \
-      FROM generate_series(1, ix.indnkeyatts) k) \
+      FROM generate_series(1, ix.indnkeyatts) k), \
+     COALESCE(array_to_string(i.reloptions, ','), ''), COALESCE(ts.spcname, ''), COALESCE(pg_get_expr(ix.indpred, ix.indrelid), '') \
      FROM pg_index ix JOIN pg_class i ON i.oid = ix.indexrelid JOIN pg_am am ON am.oid = i.relam \
+     LEFT JOIN pg_tablespace ts ON ts.oid = i.reltablespace \
      WHERE ix.indrelid = {reg}::regclass AND NOT ix.indisprimary \
      AND NOT EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conindid = ix.indexrelid AND c.conrelid = ix.indrelid) \
      ORDER BY i.relname";
+const TABLESPACES_SQL: &str = "SELECT spcname FROM pg_tablespace ORDER BY spcname";
 /// `conkey` / `confkey` as "a, b" in key order.
 const KEY_COLS: &str = "(SELECT string_agg(a.attname, ', ' ORDER BY k.n) FROM unnest(c.{key}) WITH ORDINALITY k(att, n) \
      JOIN pg_attribute a ON a.attrelid = c.{rel} AND a.attnum = k.att)";
@@ -87,11 +90,27 @@ pub(super) fn index_choices(d: &mut dyn Driver, db: &str) -> Result<IndexChoices
         collations: d.rows(db, COLLATIONS_SQL)?.iter().map(|r| Collation { schema: text(&r[0]), name: text(&r[1]) }).collect(),
         opclasses: d.rows(db, OPCLASSES_SQL)?.iter().map(|r| OpClass { schema: text(&r[0]), name: text(&r[1]), method: text(&r[2]) }).collect(),
         operators: d.rows(db, OPERATORS_SQL)?.iter().map(|r| text(&r[0])).collect(),
+        tablespaces: d.rows(db, TABLESPACES_SQL)?.iter().map(|r| text(&r[0])).collect(),
     })
 }
 
 fn index_def(r: &Row) -> IndexDef {
-    IndexDef { name: text(&r[0]), method: text(&r[1]), unique: text(&r[2]) == "t", comment: text(&r[3]), columns: text(&r[4]), ..Default::default() }
+    IndexDef {
+        name: text(&r[0]),
+        method: text(&r[1]),
+        unique: text(&r[2]) == "t",
+        comment: text(&r[3]),
+        columns: text(&r[4]),
+        storage: storage_params(&text(&r[5])),
+        tablespace: text(&r[6]),
+        predicate: text(&r[7]),
+        ..Default::default()
+    }
+}
+
+/// "fillfactor=70,buffering=on" (reloptions) → {fillfactor: 70, buffering: on}.
+fn storage_params(list: &str) -> TableOptions {
+    list.split(',').filter_map(|kv| kv.split_once('=')).map(|(k, v)| (k.trim().to_string(), v.trim().to_string())).collect()
 }
 
 fn exclude_def(r: &Row) -> ExcludeDef {

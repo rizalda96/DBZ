@@ -36,7 +36,7 @@ Sebelum menulis fungsi, widget, atau helper baru:
 | `dialect_for(kind)` → `&dyn Dialect` | `quote_ident`, `literal`, `str_literal`, `create_table`, `alter_table`, `rename_table`, `create_database`, `templates()`, … |
 | `insert_row(d, table, cols, row)`, `eq_condition(d, col, value)` | INSERT dan `col = v` / `col IS NULL` |
 | `split_statements(sql)`, `beautify(sql)`, `is_keyword(word)` | skrip SQL |
-| `parts_sql(d, &PartsChange)`, `Dialect::designer()` (`DesignerCaps`), `FK_ACTIONS` | DROP/CREATE index, FK, unique, check, trigger + opsi tabel untuk designer |
+| `parts_sql(d, &PartsChange)`, `Dialect::designer()` (`DesignerCaps`, `IndexParamSpec::applies`), `FK_ACTIONS` | DROP/CREATE index, FK, unique, check, trigger + opsi tabel untuk designer |
 | `RULE_EVENTS`, `ConstraintKind::Exclude` (SQL exclude/rule ada di `sql/exclude_rule.rs`, dipanggil dari `parts_sql`) | tab Excludes & Rules (PostgreSQL) |
 | `parse_index_columns(text)`, `index_columns_text(d, &[IndexColumn])`, `index_column_ref(d, col)`, `SORT_ORDERS`, `NULLS_ORDERS` | teks kolom index ↔ baris `IndexColumn` (nama, sub part, collation, operator class, urutan) |
 

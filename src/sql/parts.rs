@@ -33,6 +33,34 @@ pub struct OptionSpec {
     pub kind: OptionKind,
 }
 
+/// One storage parameter of an index (PostgreSQL `WITH (key = value)`).
+pub struct IndexParamSpec {
+    pub key: &'static str,
+    pub label: &'static str,
+    /// The values offered; empty = a whole number typed in.
+    pub values: &'static [&'static str],
+    /// Index methods that take it.
+    pub methods: &'static [&'static str],
+}
+
+impl IndexParamSpec {
+    /// Whether an index using `method` (the default btree when empty) takes it.
+    pub fn applies(&self, method: &str) -> bool {
+        let method = match method.trim() {
+            "" => "btree",
+            m => m,
+        };
+        self.methods.iter().any(|m| m.eq_ignore_ascii_case(method))
+    }
+
+    /// `value` as it may appear in SQL, or None when it isn't one this parameter takes.
+    pub(super) fn valid<'a>(&self, value: &'a str) -> Option<&'a str> {
+        let v = value.trim();
+        let ok = if self.values.is_empty() { !v.is_empty() && v.chars().all(|c| c.is_ascii_digit()) } else { self.values.iter().any(|x| x.eq_ignore_ascii_case(v)) };
+        ok.then_some(v)
+    }
+}
+
 /// What the designer's tabs offer on a server.
 pub struct DesignerCaps {
     pub index_methods: &'static [&'static str],
@@ -54,6 +82,10 @@ pub struct DesignerCaps {
     pub index_concurrently: bool,
     /// Exclusion constraints and rewrite rules (PostgreSQL); their tabs show only then.
     pub excludes_and_rules: bool,
+    /// Storage parameters an index can take (PostgreSQL).
+    pub index_params: &'static [IndexParamSpec],
+    /// Index tablespace and partial-index WHERE (PostgreSQL).
+    pub index_placement: bool,
     pub options: &'static [OptionSpec],
 }
 
@@ -262,6 +294,27 @@ mod tests {
         new.indexes[0].columns = "a, b".into();
         let sql = parts_sql(pg, &PartsChange { table: "t", new_table: "t", old: &old, new: &new });
         assert_eq!(sql.creates, ["CREATE INDEX CONCURRENTLY \"ix\" ON \"t\" (\"a\", \"b\")"]);
+    }
+
+    #[test]
+    fn index_properties_follow_the_method() {
+        let pg = dialect_for(DbKind::PostgreSql);
+        let storage = [("fillfactor", "70"), ("buffering", "on"), ("fastupdate", "x")].into_iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        let ix = IndexDef { name: "ix".into(), columns: "a".into(), storage, tablespace: "fast".into(), predicate: "a > 0".into(), ..Default::default() };
+        let new = TableParts { indexes: vec![ix], ..Default::default() };
+        let sql = parts_sql(pg, &PartsChange { table: "t", new_table: "t", old: &TableParts::default(), new: &new });
+        assert_eq!(sql.creates, ["CREATE INDEX \"ix\" ON \"t\" (\"a\") WITH (fillfactor = 70) TABLESPACE \"fast\" WHERE a > 0"]);
+    }
+
+    #[test]
+    fn empty_index_parameters_are_no_change() {
+        let pg = dialect_for(DbKind::PostgreSql);
+        let ix = IndexDef { name: "ix".into(), columns: "a".into(), ..Default::default() };
+        let old = TableParts { indexes: vec![ix], ..Default::default() }.loaded();
+        let mut new = old.clone();
+        new.indexes[0].storage.insert("fillfactor".into(), String::new());
+        let sql = parts_sql(pg, &PartsChange { table: "t", new_table: "t", old: &old, new: &new });
+        assert!(sql.drops.is_empty() && sql.creates.is_empty());
     }
 
     #[test]

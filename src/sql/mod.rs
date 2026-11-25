@@ -17,7 +17,7 @@ mod split;
 
 pub use beautify::beautify;
 pub use dialect::{dialect_for, Dialect, TableChange};
-pub use parts::{parts_sql, DesignerCaps, OptionKind, OptionSpec, PartsChange, FK_ACTIONS};
+pub use parts::{parts_sql, DesignerCaps, IndexParamSpec, OptionKind, OptionSpec, PartsChange, FK_ACTIONS};
 pub use dml::{eq_condition, insert_row};
 pub use exclude_rule::RULE_EVENTS;
 pub use index_columns::{index_column_ref, index_columns_text, parse_index_columns, NULLS_ORDERS, SORT_ORDERS};

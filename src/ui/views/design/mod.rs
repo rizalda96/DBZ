@@ -4,6 +4,7 @@
 mod grid;
 mod index_cols_state;
 mod index_cols_view;
+mod index_props_view;
 mod parts_cells;
 mod parts_grid;
 mod parts_state;

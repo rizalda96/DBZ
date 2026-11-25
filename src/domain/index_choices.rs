@@ -1,5 +1,5 @@
-//! What a server offers for index columns: schemas, collations and operator classes,
-//! listed in the index fields editor's drop-downs.
+//! What a server offers for indexes: schemas, collations and operator classes for the
+//! index fields editor's drop-downs, and tablespaces for the index properties.
 
 /// The method an index gets when none is chosen (PostgreSQL's default).
 const DEFAULT_METHOD: &str = "btree";
@@ -26,6 +26,8 @@ pub struct IndexChoices {
     pub opclasses: Vec<OpClass>,
     /// Boolean binary operators, for exclusion constraint elements.
     pub operators: Vec<String>,
+    /// Tablespaces an index can be put in.
+    pub tablespaces: Vec<String>,
 }
 
 impl IndexChoices {
@@ -68,6 +70,7 @@ mod tests {
             collations: vec![Collation { schema: "pg_catalog".into(), name: "C".into() }, Collation { schema: "public".into(), name: "C".into() }, Collation { schema: "public".into(), name: "nocase".into() }],
             opclasses: vec![op("pg_catalog", "uuid_ops", "btree"), op("pg_catalog", "gin_trgm_ops", "gin"), op("public", "my_ops", "btree")],
             operators: vec![],
+            tablespaces: vec![],
         }
     }
 

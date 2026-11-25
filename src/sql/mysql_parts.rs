@@ -18,6 +18,8 @@ pub(super) static CAPS: DesignerCaps = DesignerCaps {
     index_collation_opclass: false,
     index_concurrently: false,
     excludes_and_rules: false,
+    index_params: &[],
+    index_placement: false,
     options: &[
         OptionSpec { key: "engine", label: "Engine", kind: OptionKind::Text },
         OptionSpec { key: "charset", label: "Character Set", kind: OptionKind::Text },

@@ -1,7 +1,7 @@
 //! PostgreSQL statements for the designer's indexes, triggers and storage options.
 
 use super::dialect::Dialect;
-use super::parts::{column_list, pick, DesignerCaps, OptionKind, OptionSpec};
+use super::parts::{column_list, pick, DesignerCaps, IndexParamSpec, OptionKind, OptionSpec};
 use super::postgres::PgDialect;
 use crate::domain::{IndexDef, TableOptions, TriggerDef};
 
@@ -17,6 +17,14 @@ pub(super) static CAPS: DesignerCaps = DesignerCaps {
     index_collation_opclass: true,
     index_concurrently: true,
     excludes_and_rules: true,
+    index_params: &[
+        IndexParamSpec { key: "fillfactor", label: "Fill Factor (%)", values: &[], methods: &["btree", "hash", "gist", "spgist"] },
+        IndexParamSpec { key: "buffering", label: "Buffering", values: &["auto", "on", "off"], methods: &["gist"] },
+        IndexParamSpec { key: "fastupdate", label: "Fast Update", values: &["on", "off"], methods: &["gin"] },
+        IndexParamSpec { key: "gin_pending_list_limit", label: "Pending List Limit", values: &[], methods: &["gin"] },
+        IndexParamSpec { key: "pages_per_range", label: "Pages Per Range", values: &[], methods: &["brin"] },
+    ],
+    index_placement: true,
     options: &[
         OptionSpec { key: "unlogged", label: "Unlogged", kind: OptionKind::Bool },
         OptionSpec { key: "owner", label: "Owner", kind: OptionKind::Text },
@@ -37,11 +45,34 @@ pub(super) fn create_index(d: &PgDialect, table: &str, i: &IndexDef) -> Vec<Stri
     let unique = if i.unique { "UNIQUE " } else { "" };
     let concurrently = if i.concurrently { "CONCURRENTLY " } else { "" };
     let method = pick(&i.method, CAPS.index_methods).map(|m| format!(" USING {}", m)).unwrap_or_default();
-    let mut out = vec![format!("CREATE {}INDEX {}{} ON {}{} ({})", unique, concurrently, d.quote_ident(&i.name), d.quote_ident(table), method, column_list(d, &i.columns))];
+    let head = format!("CREATE {}INDEX {}{} ON {}{} ({})", unique, concurrently, d.quote_ident(&i.name), d.quote_ident(table), method, column_list(d, &i.columns));
+    let mut out = vec![head + &index_tail(d, i)];
     if !i.comment.is_empty() {
         out.push(format!("COMMENT ON INDEX {} IS {}", d.quote_ident(&in_schema(table, &i.name)), d.str_literal(&i.comment)));
     }
     out
+}
+
+/// ` WITH (…) TABLESPACE … WHERE …` after the column list. Parameters the index
+/// method doesn't take, or with values it can't have, are left out.
+fn index_tail(d: &PgDialect, i: &IndexDef) -> String {
+    let params: Vec<String> = CAPS
+        .index_params
+        .iter()
+        .filter(|p| p.applies(&i.method))
+        .filter_map(|p| i.storage.get(p.key).and_then(|v| p.valid(v)).map(|v| format!("{} = {}", p.key, v.to_lowercase())))
+        .collect();
+    let mut tail = String::new();
+    if !params.is_empty() {
+        tail.push_str(&format!(" WITH ({})", params.join(", ")));
+    }
+    if !i.tablespace.trim().is_empty() {
+        tail.push_str(&format!(" TABLESPACE {}", d.quote_ident(i.tablespace.trim())));
+    }
+    if !i.predicate.trim().is_empty() {
+        tail.push_str(&format!(" WHERE {}", i.predicate.trim()));
+    }
+    tail
 }
 
 pub(super) fn drop_index(d: &PgDialect, table: &str, name: &str) -> String {

@@ -5,6 +5,7 @@ use eframe::egui::{self, RichText, Stroke, Ui};
 
 use super::index_cols_state::ColsTarget;
 use super::index_cols_view;
+use super::index_props_view;
 use super::parts_grid::{grid, Cell, GridSpec};
 use super::parts_state::PartKind;
 use super::DesignTab;
@@ -24,6 +25,7 @@ pub(super) fn list(ui: &mut Ui, t: &mut DesignTab, k: PartKind) {
         return;
     }
     match k {
+        PartKind::Index => index_props_view::panel(ui, t),
         PartKind::Trigger => trigger_panel(ui, t),
         PartKind::Rule => rule_panel(ui, t),
         _ => {}

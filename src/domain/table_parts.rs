@@ -18,6 +18,12 @@ pub struct IndexDef {
     /// what it is: the server doesn't keep it, and ticking it alone changes nothing.
     pub concurrently: bool,
     pub comment: String,
+    /// Storage parameters (PostgreSQL `WITH (…)`), e.g. "fillfactor" → "70".
+    pub storage: TableOptions,
+    /// Tablespace of the index (PostgreSQL); empty = the default.
+    pub tablespace: String,
+    /// WHERE predicate of a partial index (PostgreSQL).
+    pub predicate: String,
     /// Name it was loaded with (None = added in the designer).
     pub orig_name: Option<String>,
 }
@@ -186,9 +192,11 @@ impl Part for IndexDef {
         self.orig_name = Some(self.name.clone());
     }
 
-    /// CONCURRENTLY says how to build the index, so it doesn't count as a change.
+    /// CONCURRENTLY says how to build the index, so it doesn't count as a change; nor
+    /// does a storage parameter that was left empty.
     fn detached(&self) -> Self {
-        IndexDef { orig_name: None, concurrently: false, ..self.clone() }
+        let storage = self.storage.iter().filter(|(_, v)| !v.trim().is_empty()).map(|(k, v)| (k.clone(), v.trim().to_string())).collect();
+        IndexDef { orig_name: None, concurrently: false, storage, ..self.clone() }
     }
 }
 
