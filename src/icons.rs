@@ -1,5 +1,6 @@
 //! Small vector icons drawn with the painter, plus the bundled DBZ logo.
 
+use crate::theme::pal;
 use eframe::egui::{self, pos2, vec2, Color32, FontId, Painter, Pos2, Rect, Shape, Stroke, StrokeKind};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -31,7 +32,6 @@ pub enum Icon {
 }
 
 const BLUE: Color32 = Color32::from_rgb(0x2f, 0x7d, 0xd1);
-const DARK: Color32 = Color32::from_rgb(0x45, 0x4f, 0x5c);
 const GREEN: Color32 = Color32::from_rgb(0x3c, 0xa5, 0x5c);
 const ORANGE: Color32 = Color32::from_rgb(0xe8, 0x8f, 0x2a);
 const RED: Color32 = Color32::from_rgb(0xd9, 0x4b, 0x4b);
@@ -206,7 +206,7 @@ pub fn paint(p: &Painter, r: Rect, icon: Icon) {
             p.line_segment([pos2(r.left() + s * 0.42, r.bottom() - s * 0.25), pos2(r.right() - s * 0.15, r.top() + s * 0.22)], st);
         }
         Icon::Discard => {
-            let st = Stroke::new(s * 0.12, DARK);
+            let st = Stroke::new(s * 0.12, pal().icon_stroke);
             let k = r.shrink(s * 0.26);
             p.line_segment([k.left_top(), k.right_bottom()], st);
             p.line_segment([k.right_top(), k.left_bottom()], st);

@@ -5,13 +5,14 @@ use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
 
-use eframe::egui::{self, vec2, Color32, FontId, Stroke, Ui};
+use eframe::egui::{self, vec2, FontId, Stroke, Ui};
 
 use crate::backend::{self, ExportFormat, Purpose, Reply, Req, Resp};
 use crate::demo::{self, DemoServer};
 use crate::icons::Icon;
 use crate::model::*;
 use crate::views::{self, *};
+use crate::theme::{self, pal};
 
 // ---------------------------------------------------------------- state
 
@@ -255,6 +256,7 @@ pub struct Dbz {
     pub auto_open: Option<(u64, String, Option<String>)>,
     pub ctx: egui::Context,
     pub query_counter: u32,
+    pub settings: theme::Settings,
 }
 
 fn data_dir() -> PathBuf {
@@ -269,40 +271,49 @@ pub fn sample_cfg(id: u64) -> ConnConfig {
     ConnConfig { id, name: "Sample Data".into(), kind: DbKind::Sample, host: "built-in".into(), port: 0, user: "sample".into(), password: String::new(), save_password: true, initial_db: String::new(), connect_timeout: 0 }
 }
 
-fn setup_style(ctx: &egui::Context) {
-    ctx.set_theme(egui::Theme::Light);
-    ctx.global_style_mut(|s| {
-        s.spacing.item_spacing = vec2(6.0, 4.0);
-        s.spacing.button_padding = vec2(8.0, 3.0);
-        s.spacing.interact_size.y = 22.0;
-        let v = &mut s.visuals;
-        v.panel_fill = Color32::from_rgb(0xfa, 0xfa, 0xfb);
-        v.window_fill = Color32::WHITE;
-        v.extreme_bg_color = Color32::WHITE;
-        v.faint_bg_color = Color32::from_rgb(0xf6, 0xf8, 0xfb);
-        v.selection.bg_fill = SEL_BG;
-        v.selection.stroke = Stroke::new(1.0, ACCENT);
-        v.hyperlink_color = ACCENT;
-        v.widgets.noninteractive.bg_stroke = Stroke::new(1.0, BORDER);
-        v.widgets.noninteractive.fg_stroke = Stroke::new(1.0, TEXT);
-        v.widgets.inactive.fg_stroke = Stroke::new(1.0, TEXT);
-        v.widgets.inactive.weak_bg_fill = Color32::from_rgb(0xf1, 0xf2, 0xf4);
-        v.widgets.inactive.bg_stroke = Stroke::new(1.0, Color32::from_rgb(0xd0, 0xd4, 0xda));
-        v.widgets.hovered.weak_bg_fill = HOVER_BG;
-        v.widgets.hovered.bg_stroke = Stroke::new(1.0, Color32::from_rgb(0x9c, 0xc0, 0xec));
-        v.widgets.active.weak_bg_fill = SEL_BG;
-        v.striped = true;
-        s.text_styles.insert(egui::TextStyle::Body, FontId::proportional(13.5));
-        s.text_styles.insert(egui::TextStyle::Button, FontId::proportional(13.5));
-        s.text_styles.insert(egui::TextStyle::Monospace, FontId::monospace(13.0));
-    });
+fn setup_style(ctx: &egui::Context, pref: theme::ThemePref) {
+    for (t, p) in [(egui::Theme::Light, &theme::LIGHT), (egui::Theme::Dark, &theme::DARK)] {
+        ctx.style_mut_of(t, |s| {
+            s.spacing.item_spacing = vec2(6.0, 4.0);
+            s.spacing.button_padding = vec2(8.0, 3.0);
+            s.spacing.interact_size.y = 22.0;
+            let v = &mut s.visuals;
+            v.panel_fill = p.panel_fill;
+            v.window_fill = p.surface;
+            v.extreme_bg_color = p.surface;
+            v.faint_bg_color = p.faint_bg;
+            v.selection.bg_fill = p.sel_bg;
+            v.selection.stroke = Stroke::new(1.0, p.accent);
+            v.hyperlink_color = p.accent;
+            v.widgets.noninteractive.bg_stroke = Stroke::new(1.0, p.border);
+            v.widgets.noninteractive.fg_stroke = Stroke::new(1.0, p.text);
+            v.widgets.inactive.fg_stroke = Stroke::new(1.0, p.text);
+            v.widgets.inactive.weak_bg_fill = p.button_bg;
+            v.widgets.inactive.bg_stroke = Stroke::new(1.0, p.button_border);
+            v.widgets.hovered.weak_bg_fill = p.hover_bg;
+            v.widgets.hovered.bg_stroke = Stroke::new(1.0, p.focus_border);
+            v.widgets.active.weak_bg_fill = p.sel_bg;
+            v.striped = true;
+            s.text_styles.insert(egui::TextStyle::Body, FontId::proportional(13.5));
+            s.text_styles.insert(egui::TextStyle::Button, FontId::proportional(13.5));
+            s.text_styles.insert(egui::TextStyle::Monospace, FontId::monospace(13.0));
+        });
+    }
+    pref.apply(ctx);
+    theme::sync(ctx);
 }
 
 impl Dbz {
     pub fn new(cc: &eframe::CreationContext<'_>, screenshot: Option<String>) -> Self {
-        setup_style(&cc.egui_ctx);
-        let (tx, rx) = std::sync::mpsc::channel();
         let dir = data_dir();
+        let settings: theme::Settings = if screenshot.is_none() {
+            std::fs::read_to_string(dir.join("settings.json")).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
+        } else {
+            // Test helper: DBZ_THEME=light|dark picks the theme for the picture.
+            theme::Settings { theme: serde_json::from_value(serde_json::Value::String(std::env::var("DBZ_THEME").unwrap_or_default())).unwrap_or(theme::ThemePref::Light) }
+        };
+        setup_style(&cc.egui_ctx, settings.theme);
+        let (tx, rx) = std::sync::mpsc::channel();
         let mut cfgs: Vec<ConnConfig> = vec![];
         if screenshot.is_none() {
             if let Ok(text) = std::fs::read_to_string(dir.join("connections.json")) {
@@ -342,6 +353,7 @@ impl Dbz {
             auto_open: None,
             ctx: cc.egui_ctx.clone(),
             query_counter: 0,
+            settings,
         };
         if let Some(id) = sample_id {
             app.auto_open = Some((id, "shop".into(), Some("customers".into())));
@@ -355,6 +367,17 @@ impl Dbz {
     }
     pub fn conn_mut(&mut self, cid: u64) -> Option<&mut ConnState> {
         self.conns.iter_mut().find(|c| c.cfg.id == cid)
+    }
+
+    pub fn set_theme(&mut self, pref: theme::ThemePref) {
+        self.settings.theme = pref;
+        pref.apply(&self.ctx);
+        if self.screenshot.is_none() {
+            let _ = std::fs::create_dir_all(&self.data_dir);
+            if let Ok(text) = serde_json::to_string_pretty(&self.settings) {
+                let _ = std::fs::write(self.data_dir.join("settings.json"), text);
+            }
+        }
     }
 
     pub fn save_config(&self) {
@@ -1235,23 +1258,24 @@ impl eframe::App for Dbz {
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
         self.poll();
         let ctx = ui.ctx().clone();
+        theme::sync(&ctx);
         let mut acts: Vec<Act> = vec![];
         if self.alert.is_none() && self.dialog.is_none() && self.conn_dialog.is_none() {
             self.shortcuts(&ctx, &mut acts);
         }
-        egui::Panel::top("menu").frame(egui::Frame::new().fill(Color32::WHITE).inner_margin(egui::Margin::symmetric(6, 2))).show(ui, |ui| self.menu_bar(ui, &mut acts));
+        egui::Panel::top("menu").frame(egui::Frame::new().fill(pal().surface).inner_margin(egui::Margin::symmetric(6, 2))).show(ui, |ui| self.menu_bar(ui, &mut acts));
         egui::Panel::top("ribbon")
-            .frame(egui::Frame::new().fill(Color32::from_rgb(0xf4, 0xf5, 0xf7)).inner_margin(egui::Margin::symmetric(8, 4)).stroke(Stroke::new(1.0, BORDER)))
+            .frame(egui::Frame::new().fill(pal().ribbon_bg).inner_margin(egui::Margin::symmetric(8, 4)).stroke(Stroke::new(1.0, pal().border)))
             .show(ui, |ui| self.ribbon(ui, &mut acts));
         egui::Panel::bottom("status")
             .exact_size(26.0)
-            .frame(egui::Frame::new().fill(Color32::from_rgb(0xf0, 0xf1, 0xf3)).inner_margin(egui::Margin::symmetric(6, 0)).stroke(Stroke::new(1.0, BORDER)))
+            .frame(egui::Frame::new().fill(pal().header_bg).inner_margin(egui::Margin::symmetric(6, 0)).stroke(Stroke::new(1.0, pal().border)))
             .show(ui, |ui| self.status_bar(ui));
-        egui::Panel::left("nav").resizable(true).default_size(260.0).min_size(170.0).frame(egui::Frame::new().fill(Color32::WHITE).stroke(Stroke::new(1.0, BORDER))).show(ui, |ui| self.nav(ui, &mut acts));
+        egui::Panel::left("nav").resizable(true).default_size(260.0).min_size(170.0).frame(egui::Frame::new().fill(pal().surface).stroke(Stroke::new(1.0, pal().border))).show(ui, |ui| self.nav(ui, &mut acts));
         if self.show_info {
-            egui::Panel::right("info").resizable(true).default_size(270.0).min_size(180.0).frame(egui::Frame::new().fill(Color32::WHITE).stroke(Stroke::new(1.0, BORDER))).show(ui, |ui| self.info(ui, &mut acts));
+            egui::Panel::right("info").resizable(true).default_size(270.0).min_size(180.0).frame(egui::Frame::new().fill(pal().surface).stroke(Stroke::new(1.0, pal().border))).show(ui, |ui| self.info(ui, &mut acts));
         }
-        egui::CentralPanel::default().frame(egui::Frame::new().fill(Color32::WHITE)).show(ui, |ui| {
+        egui::CentralPanel::default().frame(egui::Frame::new().fill(pal().surface)).show(ui, |ui| {
             self.tab_bar(ui, &mut acts);
             if self.active == 0 {
                 self.objects(ui, &mut acts);

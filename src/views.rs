@@ -10,38 +10,44 @@ use crate::backend::{ExportFormat, Purpose, Req};
 use crate::icons::{self, Icon};
 use crate::model::*;
 use crate::sqlgen;
+use crate::theme::{self, pal};
 
-pub const ACCENT: Color32 = Color32::from_rgb(0x1f, 0x6f, 0xd1);
-pub const SEL_BG: Color32 = Color32::from_rgb(0xcc, 0xe2, 0xfa);
-pub const HOVER_BG: Color32 = Color32::from_rgb(0xe6, 0xef, 0xfa);
-pub const HEADER_BG: Color32 = Color32::from_rgb(0xf0, 0xf1, 0xf3);
-pub const TOOLBAR_BG: Color32 = Color32::from_rgb(0xf7, 0xf7, 0xf8);
-pub const BORDER: Color32 = Color32::from_rgb(0xd4, 0xd7, 0xdc);
-pub const GRID_LINE: Color32 = Color32::from_rgb(0xe3, 0xe5, 0xe8);
-pub const MUTED: Color32 = Color32::from_rgb(0x8a, 0x90, 0x99);
-pub const TEXT: Color32 = Color32::from_rgb(0x22, 0x26, 0x2b);
-pub const EDITED_BG: Color32 = Color32::from_rgb(0xff, 0xf6, 0xd5);
-pub const NEW_BG: Color32 = Color32::from_rgb(0xe4, 0xf6, 0xe7);
-pub const DELETED_BG: Color32 = Color32::from_rgb(0xfb, 0xe3, 0xe3);
 
 // ---------------------------------------------------------------- shared widgets
 
+/// Style for every dropdown and context menu: roomier than egui's default so the
+/// hover highlight doesn't hug the text.
+pub fn menu_style(style: &mut egui::Style) {
+    egui::containers::menu::menu_style(style);
+    style.spacing.button_padding = vec2(12.0, 5.0);
+    style.spacing.menu_margin = egui::Margin::same(6);
+}
+
+pub fn menu_config() -> egui::containers::menu::MenuConfig {
+    egui::containers::menu::MenuConfig::new().style(menu_style)
+}
+
+/// Right-click menu on `resp`, using [`menu_style`].
+pub fn context_menu(resp: &Response, add: impl FnOnce(&mut Ui)) {
+    egui::Popup::context_menu(resp).style(menu_style).show(add);
+}
+
 pub fn tool_btn(ui: &mut Ui, icon: Option<Icon>, text: &str, enabled: bool) -> Response {
-    let color = if enabled { TEXT } else { Color32::from_gray(170) };
+    let color = if enabled { pal().text } else { pal().disabled };
     let galley = ui.painter().layout_no_wrap(text.to_owned(), FontId::proportional(12.5), color);
-    let w = galley.size().x + if icon.is_some() { 30.0 } else { 14.0 };
+    let w = galley.size().x + if icon.is_some() { 41.0 } else { 20.0 };
     let (rect, resp) = ui.allocate_exact_size(vec2(w, 26.0), if enabled { Sense::click() } else { Sense::hover() });
     let p = ui.painter();
     if enabled && resp.hovered() {
-        p.rect_filled(rect, 3.0, HOVER_BG);
-        p.rect_stroke(rect, 3.0, Stroke::new(1.0, Color32::from_rgb(0xb5, 0xcf, 0xef)), egui::StrokeKind::Inside);
+        p.rect_filled(rect, 3.0, pal().hover_bg);
+        p.rect_stroke(rect, 3.0, Stroke::new(1.0, pal().focus_border), egui::StrokeKind::Inside);
     }
-    let mut x = rect.left() + 7.0;
+    let mut x = rect.left() + 10.0;
     if let Some(i) = icon {
         let ir = Rect::from_center_size(pos2(x + 8.0, rect.center().y), vec2(16.0, 16.0));
         icons::paint(p, ir, i);
         if !enabled {
-            p.rect_filled(ir.expand(1.0), 0.0, Color32::from_rgba_unmultiplied(247, 247, 248, 170));
+            p.rect_filled(ir.expand(1.0), 0.0, theme::veil(pal().toolbar_bg));
         }
         x += 21.0;
     }
@@ -61,25 +67,25 @@ pub fn arrow(p: &egui::Painter, c: egui::Pos2, r: f32, dir: u8, color: Color32) 
 }
 
 pub fn toolbar_frame() -> egui::Frame {
-    egui::Frame::new().fill(TOOLBAR_BG).inner_margin(egui::Margin::symmetric(6, 3))
+    egui::Frame::new().fill(pal().toolbar_bg).inner_margin(egui::Margin::symmetric(6, 3))
 }
 
 fn sep(ui: &mut Ui) {
     let (r, _) = ui.allocate_exact_size(vec2(9.0, 22.0), Sense::hover());
-    ui.painter().line_segment([pos2(r.center().x, r.top() + 3.0), pos2(r.center().x, r.bottom() - 3.0)], Stroke::new(1.0, BORDER));
+    ui.painter().line_segment([pos2(r.center().x, r.top() + 3.0), pos2(r.center().x, r.bottom() - 3.0)], Stroke::new(1.0, pal().border));
 }
 
 fn cell_lines(ui: &Ui, rect: Rect) {
     let p = ui.painter();
-    p.line_segment([rect.right_top(), rect.right_bottom()], Stroke::new(1.0, GRID_LINE));
-    p.line_segment([rect.left_bottom(), rect.right_bottom()], Stroke::new(1.0, GRID_LINE));
+    p.line_segment([rect.right_top(), rect.right_bottom()], Stroke::new(1.0, pal().grid_line));
+    p.line_segment([rect.left_bottom(), rect.right_bottom()], Stroke::new(1.0, pal().grid_line));
 }
 
 fn cell_text(ui: &mut Ui, v: &Cell, color: Color32) {
     ui.add_space(5.0);
     match v {
         None => {
-            ui.add(egui::Label::new(RichText::new("(Null)").italics().color(MUTED)).truncate().selectable(false));
+            ui.add(egui::Label::new(RichText::new("(Null)").italics().color(pal().muted)).truncate().selectable(false));
         }
         Some(s) => {
             let one_line: String = if s.contains('\n') || s.len() > 300 { s.chars().take(300).map(|c| if c == '\n' || c == '\r' { ' ' } else { c }).collect() } else { s.clone() };
@@ -102,7 +108,7 @@ fn col_width(name: &str, rows: &[Row], idx: usize) -> f32 {
 pub fn result_grid(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, columns: &[String], rows: &[Row], sel: &mut Option<(usize, usize)>) {
     if columns.is_empty() {
         ui.add_space(8.0);
-        ui.label(RichText::new("  No result set").color(MUTED));
+        ui.label(RichText::new("  No result set").color(pal().muted));
         return;
     }
     ui.push_id(id, |ui| {
@@ -113,12 +119,12 @@ pub fn result_grid(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, colu
         }
         tb.header(24.0, |mut h| {
             h.col(|ui| {
-                ui.painter().rect_filled(ui.max_rect(), 0.0, HEADER_BG);
+                ui.painter().rect_filled(ui.max_rect(), 0.0, pal().header_bg);
                 cell_lines(ui, ui.max_rect());
             });
             for c in columns {
                 h.col(|ui| {
-                    ui.painter().rect_filled(ui.max_rect(), 0.0, HEADER_BG);
+                    ui.painter().rect_filled(ui.max_rect(), 0.0, pal().header_bg);
                     cell_lines(ui, ui.max_rect());
                     ui.add_space(5.0);
                     ui.add(egui::Label::new(RichText::new(c).strong()).truncate().selectable(false));
@@ -130,26 +136,26 @@ pub fn result_grid(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, colu
                 let r = row.index();
                 row.col(|ui| {
                     let rect = ui.max_rect();
-                    ui.painter().rect_filled(rect, 0.0, HEADER_BG);
+                    ui.painter().rect_filled(rect, 0.0, pal().header_bg);
                     cell_lines(ui, rect);
                     if matches!(sel, Some((sr, _)) if *sr == r) {
-                        arrow(ui.painter(), pos2(rect.left() + 13.0, rect.center().y), 4.0, 0, ACCENT);
+                        arrow(ui.painter(), pos2(rect.left() + 13.0, rect.center().y), 4.0, 0, pal().accent);
                     }
                 });
                 for c in 0..columns.len() {
                     let (rect, resp) = row.col(|ui| {
                         let rect = ui.max_rect();
                         if *sel == Some((r, c)) {
-                            ui.painter().rect_filled(rect, 0.0, SEL_BG);
+                            ui.painter().rect_filled(rect, 0.0, pal().sel_bg);
                         }
                         cell_lines(ui, rect);
-                        cell_text(ui, rows[r].get(c).unwrap_or(&None), TEXT);
+                        cell_text(ui, rows[r].get(c).unwrap_or(&None), pal().text);
                     });
                     let _ = rect;
                     if resp.clicked() || resp.secondary_clicked() {
                         *sel = Some((r, c));
                     }
-                    resp.context_menu(|ui| {
+                    context_menu(&resp, |ui| {
                         if ui.button("Copy").clicked() {
                             ui.ctx().copy_text(rows[r].get(c).cloned().flatten().unwrap_or_default());
                             ui.close();
@@ -208,11 +214,11 @@ fn highlight(text: &str) -> egui::text::LayoutJob {
     let mut job = LayoutJob::default();
     let font = FontId::monospace(13.5);
     let fmt = |c: Color32| TextFormat { font_id: font.clone(), color: c, ..Default::default() };
-    let kw = Color32::from_rgb(0x1a, 0x4f, 0xc4);
-    let string = Color32::from_rgb(0xb8, 0x3a, 0x26);
-    let num = Color32::from_rgb(0x0a, 0x86, 0x6e);
-    let comment = Color32::from_rgb(0x6a, 0x9a, 0x55);
-    let ident = Color32::from_rgb(0x8a, 0x3f, 0x9e);
+    let kw = pal().syn_keyword;
+    let string = pal().syn_string;
+    let num = pal().syn_number;
+    let comment = pal().syn_comment;
+    let ident = pal().syn_ident;
     let chars: Vec<(usize, char)> = text.char_indices().collect();
     let mut i = 0;
     while i < chars.len() {
@@ -248,9 +254,9 @@ fn highlight(text: &str) -> egui::text::LayoutJob {
             }
             let end = chars.get(j).map(|x| x.0).unwrap_or(text.len());
             let word = text[start..end].to_uppercase();
-            color = if KEYWORDS.contains(&word.as_str()) { kw } else { TEXT };
+            color = if KEYWORDS.contains(&word.as_str()) { kw } else { pal().text };
         } else {
-            color = TEXT;
+            color = pal().text;
         }
         let end = chars.get(j).map(|x| x.0).unwrap_or(text.len());
         job.append(&text[start..end], 0.0, fmt(color));
@@ -380,9 +386,9 @@ pub fn query_view(ui: &mut Ui, t: &mut QueryTab, conns: &[ConnState], acts: &mut
         }
     }
 
-    egui::Panel::bottom(("qres", t.id)).resizable(true).default_size(280.0).min_size(80.0).frame(egui::Frame::new().fill(Color32::WHITE).stroke(Stroke::new(1.0, BORDER))).show(ui, |ui| {
+    egui::Panel::bottom(("qres", t.id)).resizable(true).default_size(280.0).min_size(80.0).frame(egui::Frame::new().fill(pal().surface).stroke(Stroke::new(1.0, pal().border))).show(ui, |ui| {
         // result tabs
-        egui::Frame::new().fill(HEADER_BG).inner_margin(egui::Margin::symmetric(4, 2)).show(ui, |ui| {
+        egui::Frame::new().fill(pal().header_bg).inner_margin(egui::Margin::symmetric(4, 2)).show(ui, |ui| {
             ui.horizontal(|ui| {
                 if ui.selectable_label(t.view == 0, "Message").clicked() {
                     t.view = 0;
@@ -400,7 +406,7 @@ pub fn query_view(ui: &mut Ui, t: &mut QueryTab, conns: &[ConnState], acts: &mut
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if let Some(e) = t.elapsed {
                         let rows = if t.view > 0 { t.results.get(t.view - 1).map(|r| r.rows.len()).unwrap_or(0) } else { 0 };
-                        ui.label(RichText::new(format!("Query time: {:.3}s{}", e.as_secs_f64(), if t.view > 0 { format!("   Records: {}", rows) } else { String::new() })).color(MUTED));
+                        ui.label(RichText::new(format!("Query time: {:.3}s{}", e.as_secs_f64(), if t.view > 0 { format!("   Records: {}", rows) } else { String::new() })).color(pal().muted));
                     }
                 });
             });
@@ -427,7 +433,7 @@ pub fn query_view(ui: &mut Ui, t: &mut QueryTab, conns: &[ConnState], acts: &mut
             }
             egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
                 ui.add_space(4.0);
-                let color = if t.error.is_some() { Color32::from_rgb(0xb0, 0x20, 0x20) } else { TEXT };
+                let color = if t.error.is_some() { pal().err } else { pal().text };
                 ui.add(egui::Label::new(RichText::new(msg).monospace().color(color)).selectable(true));
             });
         } else if let Some(rs) = t.results.get(t.view - 1) {
@@ -435,13 +441,13 @@ pub fn query_view(ui: &mut Ui, t: &mut QueryTab, conns: &[ConnState], acts: &mut
         }
     });
 
-    egui::CentralPanel::default().frame(egui::Frame::new().fill(Color32::WHITE)).show(ui, |ui| {
+    egui::CentralPanel::default().frame(egui::Frame::new().fill(pal().surface)).show(ui, |ui| {
         egui::ScrollArea::both().id_salt(("qed", t.id)).auto_shrink(false).show(ui, |ui| {
             ui.horizontal_top(|ui| {
                 let lines = t.sql.matches('\n').count() + 1;
                 let nums: String = (1..=lines.max(30)).map(|n| n.to_string()).collect::<Vec<_>>().join("\n");
-                egui::Frame::new().fill(HEADER_BG).inner_margin(egui::Margin { left: 6, right: 6, top: 2, bottom: 0 }).show(ui, |ui| {
-                    ui.add(egui::Label::new(RichText::new(nums).font(FontId::monospace(13.5)).color(MUTED)).selectable(false));
+                egui::Frame::new().fill(pal().header_bg).inner_margin(egui::Margin { left: 6, right: 6, top: 2, bottom: 0 }).show(ui, |ui| {
+                    ui.add(egui::Label::new(RichText::new(nums).font(FontId::monospace(13.5)).color(pal().muted)).selectable(false));
                 });
                 let mut layouter = |ui: &Ui, text: &dyn egui::TextBuffer, wrap: f32| {
                     let mut job = highlight(text.as_str());
@@ -608,7 +614,7 @@ pub fn data_view(ui: &mut Ui, t: &mut DataTab, acts: &mut Vec<Act>) {
         });
         if t.show_filter {
             ui.horizontal(|ui| {
-                ui.label(RichText::new("WHERE").strong().color(ACCENT));
+                ui.label(RichText::new("WHERE").strong().color(pal().accent));
                 let r = ui.add(egui::TextEdit::singleline(&mut t.filter).hint_text("e.g. country = 'Japan' AND id > 10").desired_width(ui.available_width() - 150.0).font(FontId::monospace(13.0)));
                 let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
                 if ui.button("Apply").clicked() || enter {
@@ -627,7 +633,7 @@ pub fn data_view(ui: &mut Ui, t: &mut DataTab, acts: &mut Vec<Act>) {
     });
 
     // bottom bar
-    egui::Panel::bottom(("dbar", t.id)).exact_size(30.0).frame(toolbar_frame().stroke(Stroke::new(1.0, BORDER))).show(ui, |ui| {
+    egui::Panel::bottom(("dbar", t.id)).exact_size(30.0).frame(toolbar_frame().stroke(Stroke::new(1.0, pal().border))).show(ui, |ui| {
         ui.horizontal_centered(|ui| {
             ui.spacing_mut().item_spacing.x = 1.0;
             if tool_btn(ui, Some(Icon::Add), "", editable).on_hover_text("Add record").clicked() {
@@ -664,7 +670,7 @@ pub fn data_view(ui: &mut Ui, t: &mut DataTab, acts: &mut Vec<Act>) {
                 acts.push(Act::Send(t.cid, t.reload_req()));
             }
             ui.add_space(10.0);
-            ui.add(egui::Label::new(RichText::new(&t.last_sql).monospace().size(11.5).color(MUTED)).truncate());
+            ui.add(egui::Label::new(RichText::new(&t.last_sql).monospace().size(11.5).color(pal().muted)).truncate());
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let total = t.total.unwrap_or(t.rows.len() as u64);
                 let pages = ((total as usize).max(1) + t.limit - 1) / t.limit;
@@ -691,15 +697,15 @@ pub fn data_view(ui: &mut Ui, t: &mut DataTab, acts: &mut Vec<Act>) {
                     Some((r, _)) => format!("Record {} of {}", t.offset + r + 1, total),
                     None => format!("{} record(s)", total),
                 };
-                ui.label(RichText::new(rec).color(MUTED));
+                ui.label(RichText::new(rec).color(pal().muted));
             });
         });
     });
 
-    egui::CentralPanel::default().frame(egui::Frame::new().fill(Color32::WHITE)).show(ui, |ui| {
+    egui::CentralPanel::default().frame(egui::Frame::new().fill(pal().surface)).show(ui, |ui| {
         if let Some(e) = &t.error {
             ui.add_space(10.0);
-            ui.colored_label(Color32::from_rgb(0xb0, 0x20, 0x20), format!("  {}", e));
+            ui.colored_label(pal().err, format!("  {}", e));
             return;
         }
         if t.columns.is_empty() {
@@ -787,13 +793,13 @@ fn data_grid(ui: &mut Ui, t: &mut DataTab, editable: bool, acts: &mut Vec<Act>) 
     let order = t.order.clone();
     tb.header(24.0, |mut h| {
         h.col(|ui| {
-            ui.painter().rect_filled(ui.max_rect(), 0.0, HEADER_BG);
+            ui.painter().rect_filled(ui.max_rect(), 0.0, pal().header_bg);
             cell_lines(ui, ui.max_rect());
         });
         for (i, c) in t.columns.iter().enumerate() {
             let (_, resp) = h.col(|ui| {
                 let rect = ui.max_rect();
-                ui.painter().rect_filled(rect, 0.0, HEADER_BG);
+                ui.painter().rect_filled(rect, 0.0, pal().header_bg);
                 cell_lines(ui, rect);
                 ui.add_space(5.0);
                 if keys[i] {
@@ -804,7 +810,7 @@ fn data_grid(ui: &mut Ui, t: &mut DataTab, editable: bool, acts: &mut Vec<Act>) 
                 ui.add(egui::Label::new(RichText::new(c).strong()).truncate().selectable(false));
                 if let Some((oc, desc)) = &order {
                     if oc == c {
-                        arrow(ui.painter(), pos2(rect.right() - 10.0, rect.center().y), 4.0, if *desc { 1 } else { 3 }, ACCENT);
+                        arrow(ui.painter(), pos2(rect.right() - 10.0, rect.center().y), 4.0, if *desc { 1 } else { 3 }, pal().accent);
                     }
                 }
             });
@@ -818,15 +824,15 @@ fn data_grid(ui: &mut Ui, t: &mut DataTab, editable: bool, acts: &mut Vec<Act>) 
             let r = row.index();
             let rs = &t.rows[r];
             let bg = if rs.deleted {
-                Some(DELETED_BG)
+                Some(pal().deleted_bg)
             } else if rs.orig.is_none() {
-                Some(NEW_BG)
+                Some(pal().new_bg)
             } else {
                 None
             };
             row.col(|ui| {
                 let rect = ui.max_rect();
-                ui.painter().rect_filled(rect, 0.0, HEADER_BG);
+                ui.painter().rect_filled(rect, 0.0, pal().header_bg);
                 cell_lines(ui, rect);
                 let mr = Rect::from_center_size(pos2(rect.left() + 13.0, rect.center().y), vec2(12.0, 12.0));
                 if rs.deleted {
@@ -836,7 +842,7 @@ fn data_grid(ui: &mut Ui, t: &mut DataTab, editable: bool, acts: &mut Vec<Act>) 
                 } else if rs.changed() {
                     ui.painter().circle_filled(mr.center(), 3.5, Color32::from_rgb(0xe8, 0x8f, 0x2a));
                 } else if matches!(t.sel, Some((sr, _)) if sr == r) {
-                    arrow(ui.painter(), mr.center(), 4.0, 0, ACCENT);
+                    arrow(ui.painter(), mr.center(), 4.0, 0, pal().accent);
                 }
             });
             for c in 0..n_cols {
@@ -848,10 +854,10 @@ fn data_grid(ui: &mut Ui, t: &mut DataTab, editable: bool, acts: &mut Vec<Act>) 
                     if let Some(bg) = bg {
                         ui.painter().rect_filled(rect, 0.0, bg);
                     } else if cell_changed {
-                        ui.painter().rect_filled(rect, 0.0, EDITED_BG);
+                        ui.painter().rect_filled(rect, 0.0, pal().edited_bg);
                     }
                     if t.sel == Some((r, c)) && !editing_here {
-                        ui.painter().rect_filled(rect, 0.0, SEL_BG);
+                        ui.painter().rect_filled(rect, 0.0, pal().sel_bg);
                     }
                     cell_lines(ui, rect);
                     if editing_here {
@@ -868,7 +874,7 @@ fn data_grid(ui: &mut Ui, t: &mut DataTab, editable: bool, acts: &mut Vec<Act>) 
                             }
                         }
                     } else {
-                        let color = if t.rows[r].deleted { MUTED } else { TEXT };
+                        let color = if t.rows[r].deleted { pal().muted } else { pal().text };
                         cell_text(ui, &t.rows[r].cur[c], color);
                     }
                 });
@@ -882,7 +888,7 @@ fn data_grid(ui: &mut Ui, t: &mut DataTab, editable: bool, acts: &mut Vec<Act>) 
                     if resp.double_clicked() && editable {
                         start_edit = Some((r, c));
                     }
-                    resp.context_menu(|ui| {
+                    context_menu(&resp, |ui| {
                         if editable {
                             if ui.button("Edit Cell").clicked() {
                                 cell_menu = Some((r, c, "edit"));
@@ -1080,7 +1086,7 @@ pub fn design_view(ui: &mut Ui, t: &mut DesignTab, acts: &mut Vec<Act>) {
             }
         });
     });
-    egui::Frame::new().fill(HEADER_BG).inner_margin(egui::Margin::symmetric(6, 2)).show(ui, |ui| {
+    egui::Frame::new().fill(pal().header_bg).inner_margin(egui::Margin::symmetric(6, 2)).show(ui, |ui| {
         ui.horizontal(|ui| {
             for (i, l) in ["Fields", "Comment", "SQL Preview"].iter().enumerate() {
                 if ui.selectable_label(t.sub == i, *l).clicked() {
@@ -1090,7 +1096,7 @@ pub fn design_view(ui: &mut Ui, t: &mut DesignTab, acts: &mut Vec<Act>) {
         });
     });
     if let Some(e) = &t.error {
-        ui.colored_label(Color32::from_rgb(0xb0, 0x20, 0x20), format!("  {}", e));
+        ui.colored_label(pal().err, format!("  {}", e));
     }
     match t.sub {
         1 => {
@@ -1112,7 +1118,7 @@ pub fn design_view(ui: &mut Ui, t: &mut DesignTab, acts: &mut Vec<Act>) {
             });
         }
         _ => {
-            egui::Panel::bottom(("dprops", t.id)).resizable(true).default_size(120.0).frame(egui::Frame::new().fill(TOOLBAR_BG).inner_margin(8).stroke(Stroke::new(1.0, BORDER))).show(ui, |ui| {
+            egui::Panel::bottom(("dprops", t.id)).resizable(true).default_size(120.0).frame(egui::Frame::new().fill(pal().toolbar_bg).inner_margin(8).stroke(Stroke::new(1.0, pal().border))).show(ui, |ui| {
                 if let Some(i) = t.sel.filter(|i| *i < t.fields.len()) {
                     let f = &mut t.fields[i];
                     egui::Grid::new(("fprops", t.id)).num_columns(2).spacing([12.0, 6.0]).show(ui, |ui| {
@@ -1127,10 +1133,10 @@ pub fn design_view(ui: &mut Ui, t: &mut DesignTab, acts: &mut Vec<Act>) {
                         ui.end_row();
                     });
                 } else {
-                    ui.label(RichText::new("Select a field to see its properties.").color(MUTED));
+                    ui.label(RichText::new("Select a field to see its properties.").color(pal().muted));
                 }
             });
-            egui::CentralPanel::default().frame(egui::Frame::new().fill(Color32::WHITE)).show(ui, |ui| {
+            egui::CentralPanel::default().frame(egui::Frame::new().fill(pal().surface)).show(ui, |ui| {
                 design_grid(ui, t);
             });
         }
@@ -1160,7 +1166,7 @@ fn design_grid(ui: &mut Ui, t: &mut DesignTab) {
         .header(24.0, |mut h| {
             for l in ["", "Name", "Type", "Length", "Decimals", "Not Null", "Key", "Comment"] {
                 h.col(|ui| {
-                    ui.painter().rect_filled(ui.max_rect(), 0.0, HEADER_BG);
+                    ui.painter().rect_filled(ui.max_rect(), 0.0, pal().header_bg);
                     cell_lines(ui, ui.max_rect());
                     ui.add_space(5.0);
                     ui.label(RichText::new(l).strong());
@@ -1174,10 +1180,10 @@ fn design_grid(ui: &mut Ui, t: &mut DesignTab) {
                 row.set_selected(selected);
                 let (_, r0) = row.col(|ui| {
                     let rect = ui.max_rect();
-                    ui.painter().rect_filled(rect, 0.0, HEADER_BG);
+                    ui.painter().rect_filled(rect, 0.0, pal().header_bg);
                     cell_lines(ui, rect);
                     if selected {
-                        arrow(ui.painter(), pos2(rect.left() + 13.0, rect.center().y), 4.0, 0, ACCENT);
+                        arrow(ui.painter(), pos2(rect.left() + 13.0, rect.center().y), 4.0, 0, pal().accent);
                     }
                 });
                 if r0.clicked() {
@@ -1194,7 +1200,7 @@ fn design_grid(ui: &mut Ui, t: &mut DesignTab) {
                     cell_lines(ui, ui.max_rect());
                     ui.add_space(2.0);
                     touched |= ui.add(egui::TextEdit::singleline(&mut f.ty).desired_width(ui.available_width() - 40.0).id_salt(("ftype", i))).gained_focus();
-                    ui.menu_button("…", |ui| {
+                    egui::containers::menu::MenuButton::new("…").config(menu_config()).ui(ui, |ui| {
                         egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
                             for ty in types {
                                 if ui.button(*ty).clicked() {

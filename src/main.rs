@@ -8,6 +8,7 @@ mod icons;
 mod model;
 mod panes;
 mod sqlgen;
+mod theme;
 mod views;
 #[cfg(test)]
 mod tests;

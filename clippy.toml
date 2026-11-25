@@ -1,0 +1,8 @@
+# Thresholds for the size rules in .claude/rules/03-size-limits.md.
+# These lints are off by default; enable them on the command line:
+#   cargo clippy -- -W clippy::too_many_lines -W clippy::too_many_arguments -W clippy::excessive_nesting
+too-many-lines-threshold = 150
+too-many-arguments-threshold = 5
+# Clippy counts the enclosing `impl` and `fn` blocks too, so 5 = three levels inside a method
+# body (four inside a free function). The rule in 03-size-limits.md is still three.
+excessive-nesting-threshold = 5

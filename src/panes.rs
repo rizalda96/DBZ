@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use eframe::egui::{self, pos2, vec2, Color32, FontId, Rect, RichText, Sense, Stroke, Ui};
+use eframe::egui::{self, pos2, vec2, FontId, Rect, RichText, Sense, Stroke, Ui};
 use egui_extras::{Column, TableBuilder};
 
 use crate::app::*;
@@ -10,12 +10,12 @@ use crate::backend::Req;
 use crate::icons::{self, Icon};
 use crate::model::*;
 use crate::views::{self, *};
+use crate::theme::{self, pal};
 
-pub const ERR: Color32 = Color32::from_rgb(0xb0, 0x20, 0x20);
 
 impl Dbz {
     pub fn menu_bar(&mut self, ui: &mut Ui, acts: &mut Vec<Act>) {
-        egui::MenuBar::new().ui(ui, |ui| {
+        egui::MenuBar::new().style(views::menu_style).config(views::menu_config()).ui(ui, |ui| {
             ui.menu_button("File", |ui| {
                 ui.menu_button("New Connection", |ui| {
                     for k in DbKind::ALL {
@@ -71,6 +71,15 @@ impl Dbz {
                         ui.close();
                     }
                 }
+                ui.separator();
+                ui.menu_button("Theme", |ui| {
+                    for t in theme::ThemePref::ALL {
+                        if ui.radio(self.settings.theme == t, t.label()).clicked() {
+                            self.set_theme(t);
+                            ui.close();
+                        }
+                    }
+                });
                 ui.separator();
                 if ui.add(egui::Button::new("Refresh").shortcut_text("F5")).clicked() {
                     self.refresh_current(acts);
@@ -148,7 +157,7 @@ impl Dbz {
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
             let r = ribbon_btn(ui, Icon::Connection, "Connection", false, true);
-            egui::Popup::menu(&r).show(|ui| {
+            egui::Popup::menu(&r).style(views::menu_style).show(|ui| {
                 ui.set_min_width(200.0);
                 for k in DbKind::ALL {
                     if ui.button(k.label()).clicked() {
@@ -197,7 +206,7 @@ impl Dbz {
             if self.conns.is_empty() {
                 ui.add_space(20.0);
                 ui.vertical_centered(|ui| {
-                    ui.label(RichText::new("No connections yet").color(MUTED));
+                    ui.label(RichText::new("No connections yet").color(pal().muted));
                     if ui.button("New Connection…").clicked() {
                         acts.push(Act::NewConn(DbKind::MySql));
                     }
@@ -216,7 +225,7 @@ impl Dbz {
                 }
                 let tip = if c.cfg.kind == DbKind::Sample { "Built-in sample database".to_string() } else { format!("{} — {}:{} — user {}", c.cfg.kind.label(), c.cfg.host, c.cfg.port, c.cfg.user) };
                 let resp = resp.on_hover_text(tip);
-                resp.context_menu(|ui| {
+                views::context_menu(&resp, |ui| {
                     if open {
                         menu_item(ui, acts, "Close Connection", Act::CloseConn(cid));
                     } else {
@@ -261,7 +270,7 @@ impl Dbz {
                             acts.push(Act::SetMode(ObjMode::Tables));
                         }
                     }
-                    resp.context_menu(|ui| db_menu(ui, cid, &db, d.expanded, acts));
+                    views::context_menu(&resp, |ui| db_menu(ui, cid, &db, d.expanded, acts));
                     if !d.expanded {
                         continue;
                     }
@@ -269,7 +278,7 @@ impl Dbz {
                         ui.horizontal(|ui| {
                             ui.add_space(52.0);
                             ui.spinner();
-                            ui.label(RichText::new("Loading…").color(MUTED));
+                            ui.label(RichText::new("Loading…").color(pal().muted));
                         });
                         continue;
                     }
@@ -306,7 +315,7 @@ impl Dbz {
                             if resp.double_clicked() {
                                 acts.push(open_act(mode, cid, &db, &name, is_view));
                             }
-                            resp.context_menu(|ui| object_menu(ui, mode, cid, &db, &name, acts));
+                            views::context_menu(&resp, |ui| object_menu(ui, mode, cid, &db, &name, acts));
                         }
                     }
                 }
@@ -387,7 +396,7 @@ impl Dbz {
         };
         if !crumb.is_empty() {
             egui::Frame::new().inner_margin(egui::Margin::symmetric(10, 4)).show(ui, |ui| {
-                ui.label(RichText::new(crumb).color(MUTED).size(12.0));
+                ui.label(RichText::new(crumb).color(pal().muted).size(12.0));
             });
         }
         let filter = self.obj_filter.to_lowercase();
@@ -410,7 +419,7 @@ impl Dbz {
                     });
                 }
                 Some(Err(e)) => {
-                    ui.colored_label(ERR, format!("  {}", e));
+                    ui.colored_label(pal().err, format!("  {}", e));
                 }
                 Some(Ok(rs)) => {
                     let mut sel = None;
@@ -423,7 +432,7 @@ impl Dbz {
             if c.tx.is_none() {
                 ui.add_space(20.0);
                 ui.vertical_centered(|ui| {
-                    ui.label(RichText::new(format!("\"{}\" is not open.", c.cfg.name)).color(MUTED));
+                    ui.label(RichText::new(format!("\"{}\" is not open.", c.cfg.name)).color(pal().muted));
                     if ui.button("Open Connection").clicked() {
                         acts.push(Act::OpenConn(cid));
                     }
@@ -450,7 +459,7 @@ impl Dbz {
                     ui.spinner();
                     ui.label("Loading objects…");
                 } else if let Some(e) = &d.error {
-                    ui.colored_label(ERR, e);
+                    ui.colored_label(pal().err, e);
                 } else if ui.button("Open Database").clicked() {
                     acts.push(Act::OpenDb(cid, dbn.clone()));
                 }
@@ -529,7 +538,7 @@ impl Dbz {
         let (cid, db, obj) = (self.sel.cid, self.sel.db.clone(), self.sel.obj.clone());
         let mode = self.mode;
         let table_sel = obj.is_some() && matches!(mode, ObjMode::Tables | ObjMode::Views);
-        egui::Frame::new().fill(HEADER_BG).inner_margin(egui::Margin::symmetric(8, 4)).show(ui, |ui| {
+        egui::Frame::new().fill(pal().header_bg).inner_margin(egui::Margin::symmetric(8, 4)).show(ui, |ui| {
             ui.horizontal(|ui| {
                 if ui.selectable_label(!self.info_ddl || !table_sel, "General").clicked() {
                     self.info_ddl = false;
@@ -541,7 +550,7 @@ impl Dbz {
         });
         let Some(cid) = cid else {
             ui.add_space(30.0);
-            ui.vertical_centered(|ui| ui.label(RichText::new("No object selected").color(MUTED)));
+            ui.vertical_centered(|ui| ui.label(RichText::new("No object selected").color(pal().muted)));
             return;
         };
         let mut want_ddl = None;
@@ -554,13 +563,13 @@ impl Dbz {
                         icons::paint(ui.painter(), r, icon);
                         ui.vertical(|ui| {
                             ui.add(egui::Label::new(RichText::new(title).strong().size(15.0)).truncate());
-                            ui.label(RichText::new(sub).color(MUTED));
+                            ui.label(RichText::new(sub).color(pal().muted));
                         });
                     });
                     ui.add_space(12.0);
                 };
                 let prop = |ui: &mut Ui, k: &str, v: &str| {
-                    ui.label(RichText::new(k).color(MUTED).size(12.0));
+                    ui.label(RichText::new(k).color(pal().muted).size(12.0));
                     ui.add(egui::Label::new(if v.is_empty() { "—".to_string() } else { v.to_string() }).wrap());
                     ui.add_space(7.0);
                 };
@@ -621,7 +630,7 @@ impl Dbz {
                                     }
                                 }
                                 Some(Err(e)) => {
-                                    ui.colored_label(ERR, e);
+                                    ui.colored_label(pal().err, e);
                                 }
                             }
                             return;
@@ -697,7 +706,7 @@ impl Dbz {
                     if let Some(o) = &self.sel.obj {
                         parts.push(o.clone());
                     }
-                    ui.label(RichText::new(parts.join("    |    ")).size(12.0).color(MUTED));
+                    ui.label(RichText::new(parts.join("    |    ")).size(12.0).color(pal().muted));
                 }
             });
         });
@@ -705,8 +714,8 @@ impl Dbz {
 
     pub fn tab_bar(&mut self, ui: &mut Ui, acts: &mut Vec<Act>) {
         let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 31.0), Sense::hover());
-        ui.painter().rect_filled(rect, 0.0, Color32::from_rgb(0xec, 0xee, 0xf1));
-        ui.painter().line_segment([rect.left_bottom(), rect.right_bottom()], Stroke::new(1.0, BORDER));
+        ui.painter().rect_filled(rect, 0.0, pal().tab_strip);
+        ui.painter().line_segment([rect.left_bottom(), rect.right_bottom()], Stroke::new(1.0, pal().border));
         let mut x = rect.left() + 4.0;
         let n = self.tabs.len() + 1;
         let max_w = ((rect.width() - 8.0) / n as f32).clamp(90.0, 280.0);
@@ -714,7 +723,7 @@ impl Dbz {
             let (title, icon, id) = if i == 0 { ("Objects".to_string(), Icon::Folder, 0) } else { (self.tabs[i - 1].title(&self.conns), self.tabs[i - 1].icon(), self.tabs[i - 1].id()) };
             let active = self.active == i;
             let font = FontId::proportional(12.5);
-            let galley = ui.painter().layout_no_wrap(title.clone(), font.clone(), TEXT);
+            let galley = ui.painter().layout_no_wrap(title.clone(), font.clone(), pal().text);
             let w = (galley.size().x + if i == 0 { 40.0 } else { 58.0 }).min(max_w);
             if x + w > rect.right() {
                 break;
@@ -722,23 +731,23 @@ impl Dbz {
             let tr = Rect::from_min_size(pos2(x, rect.top() + 4.0), vec2(w, rect.height() - 4.0));
             let resp = ui.interact(tr, ui.scope_id().with(("tab", id)), Sense::click());
             let p = ui.painter().with_clip_rect(tr);
-            let fill = if active { Color32::WHITE } else if resp.hovered() { Color32::from_rgb(0xf6, 0xf7, 0xf9) } else { Color32::from_rgb(0xe2, 0xe5, 0xe9) };
+            let fill = if active { pal().surface } else if resp.hovered() { pal().tab_hover } else { pal().tab_inactive };
             p.rect_filled(tr, egui::CornerRadius { nw: 4, ne: 4, sw: 0, se: 0 }, fill);
             if active {
-                p.rect_filled(Rect::from_min_size(tr.min, vec2(tr.width(), 2.5)), 0.0, ACCENT);
+                p.rect_filled(Rect::from_min_size(tr.min, vec2(tr.width(), 2.5)), 0.0, pal().accent);
             }
             icons::paint(&p, Rect::from_center_size(pos2(tr.left() + 15.0, tr.center().y), vec2(15.0, 15.0)), icon);
             let text_clip = Rect::from_min_max(tr.min, pos2(tr.right() - if i == 0 { 4.0 } else { 26.0 }, tr.bottom()));
-            ui.painter().with_clip_rect(text_clip).text(pos2(tr.left() + 28.0, tr.center().y), egui::Align2::LEFT_CENTER, &title, font, if active { TEXT } else { Color32::from_rgb(0x50, 0x56, 0x5e) });
+            ui.painter().with_clip_rect(text_clip).text(pos2(tr.left() + 28.0, tr.center().y), egui::Align2::LEFT_CENTER, &title, font, if active { pal().text } else { pal().text_dim });
             let mut closed = false;
             if i > 0 {
                 let cr = Rect::from_center_size(pos2(tr.right() - 13.0, tr.center().y), vec2(16.0, 16.0));
                 let hover_close = resp.hover_pos().map(|p| cr.contains(p)).unwrap_or(false);
                 if hover_close {
-                    p.rect_filled(cr, 3.0, Color32::from_rgb(0xd6, 0xdb, 0xe2));
+                    p.rect_filled(cr, 3.0, pal().tab_close_hover);
                 }
                 if active || resp.hovered() {
-                    p.text(cr.center(), egui::Align2::CENTER_CENTER, "×", FontId::proportional(15.0), MUTED);
+                    p.text(cr.center(), egui::Align2::CENTER_CENTER, "×", FontId::proportional(15.0), pal().muted);
                 }
                 if (resp.clicked() && hover_close) || resp.middle_clicked() {
                     acts.push(Act::CloseTab(i));
@@ -749,7 +758,7 @@ impl Dbz {
                 acts.push(Act::Activate(i));
             }
             if i > 0 {
-                resp.on_hover_text(&title).context_menu(|ui| menu_item(ui, acts, "Close", Act::CloseTab(i)));
+                views::context_menu(&resp.on_hover_text(&title), |ui| menu_item(ui, acts, "Close", Act::CloseTab(i)));
             }
             x += w + 2.0;
         }
@@ -779,7 +788,7 @@ pub fn fmt_time(secs: i64) -> String {
 
 fn tsep(ui: &mut Ui) {
     let (r, _) = ui.allocate_exact_size(vec2(9.0, 22.0), Sense::hover());
-    ui.painter().line_segment([pos2(r.center().x, r.top() + 3.0), pos2(r.center().x, r.bottom() - 3.0)], Stroke::new(1.0, BORDER));
+    ui.painter().line_segment([pos2(r.center().x, r.top() + 3.0), pos2(r.center().x, r.bottom() - 3.0)], Stroke::new(1.0, pal().border));
 }
 
 fn open_act(mode: ObjMode, cid: u64, db: &str, name: &str, is_view: bool) -> Act {
@@ -868,7 +877,7 @@ fn welcome(ui: &mut Ui, acts: &mut Vec<Act>) {
         icons::logo(ui, 96.0);
         ui.add_space(10.0);
         ui.label(RichText::new("Welcome to DBZ").size(20.0).strong());
-        ui.label(RichText::new("Select a connection on the left, or create a new one.").color(MUTED));
+        ui.label(RichText::new("Select a connection on the left, or create a new one.").color(pal().muted));
         ui.add_space(12.0);
         for k in [DbKind::MySql, DbKind::MariaDb, DbKind::PostgreSql] {
             if ui.button(format!("New {} Connection…", k.label())).clicked() {
@@ -880,7 +889,7 @@ fn welcome(ui: &mut Ui, acts: &mut Vec<Act>) {
 
 fn empty_note(ui: &mut Ui, text: &str) {
     ui.add_space(6.0);
-    ui.label(RichText::new(format!("   {}", text)).color(MUTED));
+    ui.label(RichText::new(format!("   {}", text)).color(pal().muted));
 }
 
 pub enum RowEv<'a> {
@@ -916,10 +925,10 @@ fn object_table(
             for l in headers {
                 h.col(|ui| {
                     let r = ui.max_rect();
-                    ui.painter().line_segment([r.left_bottom(), r.right_bottom()], Stroke::new(1.0, BORDER));
-                    ui.painter().line_segment([r.right_top() + vec2(0.0, 5.0), r.right_bottom() - vec2(0.0, 5.0)], Stroke::new(1.0, GRID_LINE));
+                    ui.painter().line_segment([r.left_bottom(), r.right_bottom()], Stroke::new(1.0, pal().border));
+                    ui.painter().line_segment([r.right_top() + vec2(0.0, 5.0), r.right_bottom() - vec2(0.0, 5.0)], Stroke::new(1.0, pal().grid_line));
                     ui.add_space(8.0);
-                    ui.label(RichText::new(*l).color(Color32::from_rgb(0x55, 0x5b, 0x64)).size(12.5));
+                    ui.label(RichText::new(*l).color(pal().text_dim).size(12.5));
                 });
             }
         })
@@ -933,7 +942,7 @@ fn object_table(
                     let (_, resp) = row.col(|ui| {
                         let r = ui.max_rect();
                         if sel {
-                            ui.painter().rect_filled(r, 0.0, SEL_BG);
+                            ui.painter().rect_filled(r, 0.0, pal().sel_bg);
                         }
                         ui.add_space(8.0);
                         if c == 0 {
@@ -941,7 +950,7 @@ fn object_table(
                             icons::paint(ui.painter(), ir, icon(i));
                             ui.add_space(6.0);
                         }
-                        let color = if c == 0 { TEXT } else { Color32::from_rgb(0x5a, 0x60, 0x68) };
+                        let color = if c == 0 { pal().text } else { pal().text_dim };
                         ui.add(egui::Label::new(RichText::new(v).color(color)).truncate().selectable(false));
                     });
                     all = Some(match all {
@@ -955,7 +964,7 @@ fn object_table(
                     } else if r.clicked() || r.secondary_clicked() {
                         on(i, RowEv::Click);
                     }
-                    r.context_menu(|ui| on(i, RowEv::Menu(ui)));
+                    views::context_menu(&r, |ui| on(i, RowEv::Menu(ui)));
                 }
             });
         });
@@ -967,16 +976,16 @@ fn tree_row(ui: &mut Ui, depth: usize, expander: Option<bool>, icon: Icon, label
     let (rect, resp) = ui.allocate_exact_size(vec2(w, 22.0), Sense::click());
     let p = ui.painter();
     if selected {
-        p.rect_filled(rect, 0.0, SEL_BG);
+        p.rect_filled(rect, 0.0, pal().sel_bg);
     } else if resp.hovered() {
-        p.rect_filled(rect, 0.0, Color32::from_rgb(0xee, 0xf3, 0xfa));
+        p.rect_filled(rect, 0.0, pal().tree_hover);
     }
     let x0 = rect.left() + 4.0 + depth as f32 * 16.0;
     let mut toggled = false;
     if let Some(open) = expander {
         let tri = Rect::from_center_size(pos2(x0 + 6.0, rect.center().y), vec2(12.0, 12.0));
         let c = tri.center();
-        let col = Color32::from_rgb(0x80, 0x86, 0x8f);
+        let col = pal().expander;
         let pts = if open { vec![pos2(c.x - 4.0, c.y - 2.0), pos2(c.x + 4.0, c.y - 2.0), pos2(c.x, c.y + 3.0)] } else { vec![pos2(c.x - 2.0, c.y - 4.0), pos2(c.x + 3.0, c.y), pos2(c.x - 2.0, c.y + 4.0)] };
         p.add(egui::Shape::convex_polygon(pts, col, Stroke::NONE));
         if resp.clicked() {
@@ -991,29 +1000,30 @@ fn tree_row(ui: &mut Ui, depth: usize, expander: Option<bool>, icon: Icon, label
         }
     }
     icons::paint(p, Rect::from_center_size(pos2(x0 + 22.0, rect.center().y), vec2(16.0, 16.0)), icon);
-    p.with_clip_rect(rect).text(pos2(x0 + 34.0, rect.center().y), egui::Align2::LEFT_CENTER, label, FontId::proportional(13.0), TEXT);
+    p.with_clip_rect(rect).text(pos2(x0 + 34.0, rect.center().y), egui::Align2::LEFT_CENTER, label, FontId::proportional(13.0), pal().text);
     (resp, toggled)
 }
 
 fn ribbon_btn(ui: &mut Ui, icon: Icon, label: &str, selected: bool, enabled: bool) -> egui::Response {
-    let (rect, resp) = ui.allocate_exact_size(vec2(66.0, 60.0), if enabled { Sense::click() } else { Sense::hover() });
+    let label_w = ui.painter().layout_no_wrap(label.to_owned(), FontId::proportional(12.0), pal().text).size().x;
+    let (rect, resp) = ui.allocate_exact_size(vec2((label_w + 20.0).max(66.0), 60.0), if enabled { Sense::click() } else { Sense::hover() });
     let p = ui.painter();
     if selected {
-        p.rect_filled(rect, 4.0, SEL_BG);
-        p.rect_stroke(rect, 4.0, Stroke::new(1.0, Color32::from_rgb(0x9c, 0xc0, 0xec)), egui::StrokeKind::Inside);
+        p.rect_filled(rect, 4.0, pal().sel_bg);
+        p.rect_stroke(rect, 4.0, Stroke::new(1.0, pal().focus_border), egui::StrokeKind::Inside);
     } else if enabled && resp.hovered() {
-        p.rect_filled(rect, 4.0, HOVER_BG);
+        p.rect_filled(rect, 4.0, pal().hover_bg);
     }
     let ir = Rect::from_center_size(pos2(rect.center().x, rect.top() + 22.0), vec2(30.0, 30.0));
     icons::paint(p, ir, icon);
     if !enabled {
-        p.rect_filled(ir.expand(2.0), 0.0, Color32::from_rgba_unmultiplied(244, 245, 247, 170));
+        p.rect_filled(ir.expand(2.0), 0.0, theme::veil(pal().ribbon_bg));
     }
-    p.text(pos2(rect.center().x, rect.bottom() - 9.0), egui::Align2::CENTER_CENTER, label, FontId::proportional(12.0), if enabled { TEXT } else { Color32::from_gray(160) });
+    p.text(pos2(rect.center().x, rect.bottom() - 9.0), egui::Align2::CENTER_CENTER, label, FontId::proportional(12.0), if enabled { pal().text } else { pal().disabled });
     resp
 }
 
 fn ribbon_sep(ui: &mut Ui) {
     let (r, _) = ui.allocate_exact_size(vec2(12.0, 60.0), Sense::hover());
-    ui.painter().line_segment([pos2(r.center().x, r.top() + 8.0), pos2(r.center().x, r.bottom() - 8.0)], Stroke::new(1.0, BORDER));
+    ui.painter().line_segment([pos2(r.center().x, r.top() + 8.0), pos2(r.center().x, r.bottom() - 8.0)], Stroke::new(1.0, pal().border));
 }

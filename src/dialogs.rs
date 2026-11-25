@@ -6,9 +6,8 @@ use crate::app::*;
 use crate::backend::{self, ExportFormat, Purpose, Req};
 use crate::icons::{self, Icon};
 use crate::model::*;
-use crate::panes::ERR;
 use crate::sqlgen::quote_ident;
-use crate::views::MUTED;
+use crate::theme::pal;
 
 fn win(title: &str) -> egui::Window<'static> {
     egui::Window::new(title.to_string()).collapsible(false).resizable(false).anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
@@ -336,7 +335,7 @@ impl Dbz {
                         ui.end_row();
                     } else {
                         ui.label("");
-                        ui.add(egui::Label::new(RichText::new("A small database built into the app, with shop and analytics sample tables. Changes last until the app closes.").color(MUTED)).wrap());
+                        ui.add(egui::Label::new(RichText::new("A small database built into the app, with shop and analytics sample tables. Changes last until the app closes.").color(pal().muted)).wrap());
                         ui.end_row();
                     }
                 } else {
@@ -352,15 +351,15 @@ impl Dbz {
                 }
             });
             if !d.cfg.save_password && !sample {
-                ui.label(RichText::new("It will be kept only until the app closes.").color(MUTED).size(12.0));
+                ui.label(RichText::new("It will be kept only until the app closes.").color(pal().muted).size(12.0));
             }
             ui.add_space(8.0);
             match &d.test {
                 Some(Ok(m)) => {
-                    ui.colored_label(Color32::from_rgb(0x2a, 0x8a, 0x4a), format!("Success: {}", m));
+                    ui.colored_label(pal().ok, format!("Success: {}", m));
                 }
                 Some(Err(e)) => {
-                    ui.add(egui::Label::new(RichText::new(format!("Failed: {}", e)).color(ERR)).wrap());
+                    ui.add(egui::Label::new(RichText::new(format!("Failed: {}", e)).color(pal().err)).wrap());
                 }
                 None => {
                     if d.test_id.is_some() {
