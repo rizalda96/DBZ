@@ -1,9 +1,12 @@
 //! Background workers. Each open connection gets its own thread that owns the driver
 //! and answers requests one at a time, so the window never freezes.
 
+mod ai_reads;
+mod ai_thread;
 mod handlers;
 mod protocol;
 
+pub use ai_thread::{ask_ai, AiAsk, AiReply};
 pub use protocol::{PageQuery, Purpose, Reply, Req, Resp, TablePage};
 
 use std::sync::mpsc::{Receiver, Sender};

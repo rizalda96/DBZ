@@ -12,6 +12,7 @@ yang tersebar di banyak fungsi.
 | Sintaks SQL | `sql::Dialect` | `MySqlDialect`, `PgDialect`, `MssqlDialect` | `sql::dialect_for(kind)` |
 | Import koneksi dari tool lain | `transfer::conn_import::ConnImporter` | `Navicat`, `HeidiSql`, `DBeaver` | `ConnSource::importer()` |
 | Format export | `transfer::Exporter` | `DelimitedExporter` (CSV/TSV), `JsonExporter`, `SqlExporter`, `HtmlExporter` | `ExportFormat::exporter()` |
+| Otak asisten AI | `ai::AiBackend` | `ClaudeCli`, `OpenAiCompat` | `ai::backend_for(cfg, work_dir)` |
 
 Import baru punya satu format (CSV/teks) — **belum** ada trait `Importer` (YAGNI).
 Buat trait itu saat format import kedua benar-benar ditambahkan.

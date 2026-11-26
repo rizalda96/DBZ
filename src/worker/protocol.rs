@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use crate::db::DbError;
-use crate::domain::{FieldDef, IndexChoices, ResultSet, RoutineInfo, TableInfo, TableParts};
+use crate::domain::{DbRead, FieldDef, IndexChoices, ResultSet, RoutineInfo, TableInfo, TableParts};
 use crate::transfer::{ArchivePart, ExportOptions, ImportOptions};
 
 /// Rows of one page of a table, plus how it was fetched.
@@ -44,6 +44,8 @@ pub enum Req {
     DumpArchive { db: String, path: String, part: ArchivePart },
     RestoreArchive { db: String, path: String },
     Users,
+    /// One of the AI's read tools, on the AI's own connection.
+    AiRead { db: String, schema: String, read: DbRead },
 }
 
 impl Req {
@@ -95,6 +97,8 @@ pub enum Resp {
     Exec { tab: u64, db: String, result: Result<u64, DbError>, purpose: Purpose },
     Task(Result<String, DbError>),
     Users(Result<ResultSet, DbError>),
+    /// The tool's answer as text for the AI.
+    AiRead(Result<String, DbError>),
 }
 
 /// A reply tagged with the connection id it came from.

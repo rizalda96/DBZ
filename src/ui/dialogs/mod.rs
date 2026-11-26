@@ -1,6 +1,7 @@
 //! Pop-up windows: alerts, confirmations, wizards and the connection editor. They edit
 //! their own state and push `Act`s; the app does the work.
 
+mod ai_settings;
 mod conn_auth;
 mod connection;
 mod simple;
@@ -23,6 +24,13 @@ pub fn show(ctx: &egui::Context, st: &mut DialogState, ws: &Workspace, acts: &mu
         }
         return;
     }
+    if let Some((title, msg)) = &st.ai_confirm {
+        let choice = simple::confirm(ctx, title, msg);
+        if !choice.keep() {
+            st.ai_confirm = None;
+            acts.push(Act::AiChangeAnswer(choice == Choice::Ok));
+        }
+    }
     if let Some(d) = &mut st.conn {
         connection::show(ctx, d, acts);
     }
@@ -31,10 +39,11 @@ pub fn show(ctx: &egui::Context, st: &mut DialogState, ws: &Workspace, acts: &mu
     if choice.keep() {
         return;
     }
-    if let (Choice::Ok, Some(Dialog::Confirm { action, .. })) = (choice, st.dialog.take()) {
-        acts.push(Act::Confirmed(action));
+    match (choice, st.dialog.take()) {
+        (Choice::Ok, Some(Dialog::Confirm { action, .. })) => acts.push(Act::Confirmed(action)),
+        (Choice::Ok, Some(Dialog::AiSettings { cfg, .. })) => acts.push(Act::SaveAiSettings(cfg)),
+        _ => {}
     }
-    st.dialog = None;
 }
 
 fn draw(ctx: &egui::Context, dialog: &mut Dialog, ws: &Workspace, acts: &mut Vec<Act>) -> Choice {
@@ -45,6 +54,7 @@ fn draw(ctx: &egui::Context, dialog: &mut Dialog, ws: &Workspace, acts: &mut Vec
         Dialog::NameMatView { tab, name } => simple::name_matview(ctx, *tab, name, acts),
         Dialog::Rename { cid, db, table, new } => simple::rename(ctx, (*cid, ws.dialect_of(*cid)), (db, table), new, acts),
         Dialog::About => simple::about(ctx),
+        Dialog::AiSettings { cfg, test, testing } => ai_settings::show(ctx, cfg, test.as_ref(), *testing, acts),
         Dialog::ImportConns { source, path } => wizards::import_conns(ctx, source, path, acts),
         Dialog::Export { cid, db, opts } => wizards::export(ctx, (*cid, db), opts, acts),
         Dialog::Import { cid, db, opts } => {

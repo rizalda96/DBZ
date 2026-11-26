@@ -2,6 +2,7 @@
 
 use std::time::Instant;
 
+use super::ai_reads::ai_read;
 use super::protocol::{PageQuery, Purpose, Req, Resp, TablePage};
 use crate::db::{DbError, Driver};
 use crate::domain::{first_cell, ConnConfig, ResultSet};
@@ -61,6 +62,7 @@ pub(super) fn handle(d: &mut dyn Driver, cfg: &ConnConfig, req: Req) -> Resp {
         Req::DumpArchive { db, path, part } => Resp::Task(transfer::dump_archive(cfg, &db, &path, part)),
         Req::RestoreArchive { db, path } => Resp::Task(transfer::restore_archive(cfg, &db, &path)),
         Req::Users => Resp::Users(d.users()),
+        Req::AiRead { db, schema, read } => Resp::AiRead(ai_read(d, &db, &schema, read)),
     }
 }
 
@@ -96,7 +98,7 @@ fn run_statements(d: &mut dyn Driver, db: &str, sql: &str) -> (Vec<ResultSet>, O
 }
 
 /// The plans of a script's statements, in the server's own way of asking for them.
-fn explain_statements(d: &mut dyn Driver, db: &str, sql: &str) -> (Vec<ResultSet>, Option<(String, DbError)>) {
+pub(super) fn explain_statements(d: &mut dyn Driver, db: &str, sql: &str) -> (Vec<ResultSet>, Option<(String, DbError)>) {
     let dialect = d.dialect();
     let (on, off) = match dialect.explain() {
         Explain::Prefix(p) => return run_pieces(d, db, dialect.split_script(sql).into_iter().map(|s| format!("{}{}", p, s)).collect()),

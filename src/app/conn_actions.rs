@@ -66,6 +66,7 @@ impl Dbz {
         if self.ws.sel.cid == Some(cid) {
             self.ws.sel = Sel::conn(cid);
         }
+        self.ai_conn_closed(cid);
     }
 
     pub(super) fn toggle_conn(&mut self, cid: u64) {

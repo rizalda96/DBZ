@@ -22,6 +22,15 @@ pub enum Explain {
     Session { on: &'static str, off: &'static str },
 }
 
+/// How a server is kept from sending more than a set number of rows for one statement.
+#[derive(Debug, PartialEq)]
+pub enum CapRows {
+    /// The statement to send instead (or the same one, when it can't be wrapped).
+    Wrapped(String),
+    /// A session setting turns the cap on before the statement and off after it.
+    Session { on: String, off: &'static str },
+}
+
 /// Everything the designer knows about a table edit.
 pub struct TableChange<'a> {
     pub table: &'a str,
@@ -43,6 +52,24 @@ pub trait Dialect: Sync {
     /// `CREATE DATABASE`, with `charset` already cleaned of quotes and spaces.
     fn create_database(&self, name: &str, charset: &str) -> String;
     fn begin_transaction(&self) -> &'static str;
+    /// Starts a transaction that the server stops from writing, where it can; the AI's
+    /// reads run inside one and always roll back.
+    fn read_only_begin(&self) -> &'static str;
+    /// Makes every later transaction of the session read-only, so even a statement
+    /// that ends the AI's read-only transaction can't write; None where the server has
+    /// no such setting.
+    fn read_only_session(&self) -> Option<&'static str> {
+        None
+    }
+    /// Limits `stmt` to `max` rows on the server side.
+    fn cap_rows(&self, stmt: &str, max: usize) -> CapRows;
+
+    /// Makes the server cancel statements running longer than `secs`; None when the
+    /// server has no such session setting.
+    fn statement_timeout(&self, _secs: u32) -> Option<String> {
+        None
+    }
+
     /// Appended to UPDATE/DELETE on tables without a key, so one edit touches one row.
     fn single_row_limit(&self) -> &'static str;
     fn insert_defaults(&self, table: &str) -> String;

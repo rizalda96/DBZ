@@ -3,6 +3,8 @@
 //! separate `impl Dbz` blocks.
 
 mod actions;
+mod ai_actions;
+mod ai_state;
 mod confirm;
 mod conn_actions;
 mod db_actions;
@@ -21,6 +23,7 @@ mod tab_actions;
 mod tabs;
 
 pub use actions::{Act, Confirm, FolderRef, ObjRef};
+pub use ai_state::{AiBusy, AiChat, ChatItem};
 pub use dialog_state::{ConnDialog, Dialog, DialogState, RunningTask};
 pub use state::{ConnState, ConnStatus, DbState, ObjMode, PaneState, Sel, Workspace};
 pub use tabs::Tab;
@@ -34,6 +37,7 @@ use eframe::egui;
 use crate::domain::ConnConfig;
 use crate::ui::style::setup_style;
 use crate::worker::{Reply, ReplyTo, Req};
+use ai_actions::AiRuntime;
 use persistence::{Settings, Store};
 use screenshot::Screenshot;
 
@@ -59,6 +63,8 @@ pub struct Dbz {
     rt: Runtime,
     store: Store,
     settings: Settings,
+    ai: AiChat,
+    ai_rt: AiRuntime,
     status: String,
     ids: Ids,
     shot: Option<Screenshot>,
@@ -82,6 +88,8 @@ impl Dbz {
             rt: Runtime { reply: ReplyTo { tx, ctx: cc.egui_ctx.clone() }, rx, test_tx: None },
             store,
             settings,
+            ai: AiChat::default(),
+            ai_rt: AiRuntime::new(),
             status: "Ready".into(),
             ids: Ids { next_conn, next_tab: 1, query_counter: 0 },
             splash: screenshot.is_none().then(Instant::now),

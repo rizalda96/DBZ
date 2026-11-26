@@ -15,7 +15,9 @@ src/
                        #   split_statements, beautify, insert_row/eq_condition
   db/                  # akses database: trait Driver + MySqlDriver/PgDriver, DbError
   transfer/            # export/import/dump/run_file ke & dari file; trait Exporter per format
-  worker/              # thread per koneksi: protocol (Req/Resp/Purpose) + handler
+  ai/                  # otak asisten AI tanpa UI/DB: protokol ```dbz, system prompt, trait AiBackend
+                       #   (ClaudeCli, OpenAiCompat). Tidak import db, worker, egui.
+  worker/              # thread per koneksi: protocol (Req/Resp/Purpose) + handler; thread per permintaan AI
   app/                 # orkestrasi: state (Workspace), Act → handler, balasan worker, persistence
   ui/
     widgets/           # komponen UI global yang dipakai ulang (lihat 06-reuse-existing.md)
@@ -29,13 +31,15 @@ src/
 
 ```
 main → app → worker → transfer → db → sql → domain
-        │       └────────────────┘     └──→ shared
+        │       ├────────────────┘     └──→ shared
+        │       └──→ ai ──→ domain
         └──→ ui ──→ (app::state, app::actions), sql, domain, shared
 ```
 
 - `domain` dan `shared` tidak bergantung pada modul lain di crate.
 - `sql` hanya bergantung pada `domain`. `db` pada `sql` + `domain` (+ `shared`).
-- `transfer` memakai `db::Driver`; `worker` memakai `db` + `transfer`. `db` tidak tahu `worker`.
+- `transfer` memakai `db::Driver`; `worker` memakai `db` + `transfer` + `ai`. `db` tidak tahu `worker`.
+- `ai` hanya bergantung pada `domain`: ia membuat dan membaca teks, tidak bicara ke database.
 - `ui` **hanya** membaca model (`app::Workspace`, `ConnState`, `Tab`, …) dan mendorong pesan
   (`app::Act`). UI tidak memanggil driver, tidak menulis file, tidak menyimpan setting.
   Satu-satunya I/O di UI adalah file picker (`rfd`) di dialog.

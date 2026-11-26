@@ -22,6 +22,7 @@ impl Dbz {
                 self.handle(cid, resp);
             }
         }
+        self.ai_poll();
     }
 
     fn test_reply(&mut self, resp: Resp) {
@@ -56,6 +57,8 @@ impl Dbz {
             Resp::TableData { tab, result, sql, elapsed } => self.table_data(tab, result, sql, elapsed),
             Resp::Exec { tab, db, result, purpose } => self.exec_done(cid, (tab, db), result, purpose),
             Resp::Task(r) => self.task_done(cid, r),
+            // Only the AI's own connection answers these, and `ai_poll` reads that one.
+            Resp::AiRead(_) => {}
             Resp::Users(r) => {
                 if let Some(c) = self.ws.conn_mut(cid) {
                     c.users = Some(r);

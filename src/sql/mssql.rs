@@ -1,7 +1,7 @@
 //! SQL Server (T-SQL) syntax.
 
 use super::batches::split_batches;
-use super::dialect::{create_table_head, default_expr, Dialect, Explain, SqlTemplates, TableChange};
+use super::dialect::{create_table_head, default_expr, CapRows, Dialect, Explain, SqlTemplates, TableChange};
 use super::mssql_alter as alter;
 use super::mssql_parts as parts;
 use super::parts::{ConstraintKind, DesignerCaps};
@@ -88,6 +88,16 @@ impl Dialect for MssqlDialect {
 
     fn begin_transaction(&self) -> &'static str {
         "BEGIN TRANSACTION"
+    }
+
+    /// SQL Server has no read-only transaction; `sql::check_read` is what keeps the
+    /// AI's statements to reads, and the rollback undoes anything it missed.
+    fn read_only_begin(&self) -> &'static str {
+        "BEGIN TRANSACTION"
+    }
+
+    fn cap_rows(&self, _stmt: &str, max: usize) -> CapRows {
+        CapRows::Session { on: format!("SET ROWCOUNT {}", max), off: "SET ROWCOUNT 0" }
     }
 
     /// T-SQL has no LIMIT on UPDATE/DELETE; like PostgreSQL, a keyless edit touches

@@ -72,6 +72,15 @@ impl Dbz {
             Act::Status(s) => self.status = s,
             Act::SetTheme(t) => self.set_theme(t),
             Act::ShowAbout => self.dialogs.dialog = Some(Dialog::About),
+            Act::AiToggle => self.ai.open = !self.ai.open,
+            Act::AiSend => self.ai_send(),
+            Act::AiNew => self.ai_new(),
+            Act::AiStop => self.ai_stop(),
+            Act::AiOpenSql(sql) => self.ai_open_sql(sql),
+            Act::AiChangeAnswer(ok) => self.ai_change_answer(ok),
+            Act::ShowAiSettings => self.show_ai_settings(),
+            Act::SaveAiSettings(cfg) => self.save_ai_settings(cfg),
+            Act::TestAi(cfg) => self.test_ai(cfg),
         }
     }
 }

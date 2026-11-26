@@ -279,6 +279,27 @@ your server, or a newer one.
 - **Linux:** `sudo apt install postgresql-client` (Debian/Ubuntu),
   `sudo dnf install postgresql` (Fedora) or `sudo pacman -S postgresql` (Arch).
 
+### AI assistant
+
+**View › AI Assistant** (or the **AI** ribbon button, or **Ctrl+Shift+A**) opens a chat panel for the
+selected database. It writes and fixes SQL, explains slow queries, and designs views,
+functions, procedures and triggers. Questions about anything other than databases are
+declined.
+
+- **Reading:** the AI looks at the database by itself on a separate connection:
+  object lists, table structure, DDL, `EXPLAIN`, and `SELECT`s of at most 200 rows. Those
+  run in a read-only transaction that is always rolled back.
+- **Changing:** every change the AI proposes asks for your OK first, then **opens in an
+  editor tab without running**. You run or save it yourself.
+- **Brain:** set it in **Tools › AI Settings…**:
+  - **Claude CLI:** the `claude` command line on this computer, run with all of its
+    tools turned off.
+  - **OpenAI-compatible URL:** any `/chat/completions` endpoint, for example 9router at
+    `http://localhost:20128/v1`, plus a model and an optional API key.
+
+The AI sees table names, structure and the rows it reads, so use a provider you trust
+with that data.
+
 ## 📂 Where DBZ keeps its files
 
 Settings, connections, saved queries and backups live in:
@@ -295,7 +316,7 @@ leaves this folder in place, so delete it by hand if you want a clean slate.
 > [!WARNING]
 > When **Save password** is ticked, the password is stored in `connections.json` **in
 > plain text**, so keep that folder private. When it isn't ticked, the password is only
-> kept until DBZ closes.
+> kept until DBZ closes. The AI API key in `settings.json` is stored in plain text too.
 
 ## 🔧 Build from source
 

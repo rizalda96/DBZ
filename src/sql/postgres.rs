@@ -1,6 +1,6 @@
 //! PostgreSQL syntax.
 
-use super::dialect::{create_table_head, default_expr, Dialect, SqlTemplates, TableChange};
+use super::dialect::{create_table_head, default_expr, CapRows, Dialect, SqlTemplates, TableChange};
 use super::diff::{diff, ColumnDiff};
 use super::parts::{ConstraintKind, DesignerCaps};
 use super::postgres_parts as parts;
@@ -96,6 +96,30 @@ impl Dialect for PgDialect {
 
     fn begin_transaction(&self) -> &'static str {
         "BEGIN"
+    }
+
+    fn read_only_begin(&self) -> &'static str {
+        "BEGIN READ ONLY"
+    }
+
+    fn read_only_session(&self) -> Option<&'static str> {
+        Some("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY")
+    }
+
+    /// PostgreSQL has no session row cap, so queries are wrapped; SHOW and the like
+    /// return a handful of rows and go as they are.
+    fn cap_rows(&self, stmt: &str, max: usize) -> CapRows {
+        let stmt = stmt.trim().trim_end_matches(';').trim_end();
+        let first = stmt.split(|c: char| !c.is_alphanumeric()).next().unwrap_or_default().to_uppercase();
+        if ["SELECT", "WITH", "VALUES", "TABLE"].contains(&first.as_str()) {
+            CapRows::Wrapped(format!("SELECT * FROM ({}) AS dbz_q LIMIT {}", stmt, max))
+        } else {
+            CapRows::Wrapped(stmt.to_string())
+        }
+    }
+
+    fn statement_timeout(&self, secs: u32) -> Option<String> {
+        Some(format!("SET statement_timeout = '{}s'", secs))
     }
 
     /// `public` stays on the path after the chosen schema, so functions from

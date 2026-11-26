@@ -73,7 +73,8 @@ pub(super) fn confirm(ctx: &egui::Context, title: &str, msg: &str) -> Choice {
             let (r, _) = ui.allocate_exact_size(vec2(32.0, 32.0), Sense::hover());
             ui.painter().circle_filled(r.center(), 14.0, WARNING);
             ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, "!", FontId::proportional(18.0), Color32::WHITE);
-            ui.add(egui::Label::new(msg).wrap());
+            // Long messages (an AI's proposed SQL) scroll instead of growing past the screen.
+            egui::ScrollArea::vertical().max_height(360.0).show(ui, |ui| ui.add(egui::Label::new(msg).wrap().selectable(true)));
         });
         choice = buttons(ui, "OK", true);
     });

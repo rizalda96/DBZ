@@ -1,6 +1,7 @@
 //! Window pieces: menu, ribbon, connection tree, object list, info pane, tab bar and
 //! status bar. Each takes only the state it shows and pushes `Act`s.
 
+mod ai_chat;
 mod info;
 mod menu_bar;
 mod nav;
@@ -12,6 +13,7 @@ mod search;
 mod status_bar;
 mod tab_bar;
 
+pub use ai_chat::ai_chat;
 pub use info::info;
 pub use menu_bar::menu_bar;
 pub use nav::nav;

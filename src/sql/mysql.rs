@@ -1,6 +1,6 @@
 //! MySQL / MariaDB syntax.
 
-use super::dialect::{create_table_head, default_expr, Dialect, SqlTemplates, TableChange};
+use super::dialect::{create_table_head, default_expr, CapRows, Dialect, SqlTemplates, TableChange};
 use super::diff::{diff, ColumnDiff};
 use super::mysql_parts as parts;
 use super::parts::{ConstraintKind, DesignerCaps};
@@ -88,6 +88,24 @@ impl Dialect for MySqlDialect {
 
     fn begin_transaction(&self) -> &'static str {
         "START TRANSACTION"
+    }
+
+    fn read_only_begin(&self) -> &'static str {
+        "START TRANSACTION READ ONLY"
+    }
+
+    fn read_only_session(&self) -> Option<&'static str> {
+        Some("SET SESSION TRANSACTION READ ONLY")
+    }
+
+    fn cap_rows(&self, _stmt: &str, max: usize) -> CapRows {
+        CapRows::Session { on: format!("SET SESSION sql_select_limit = {}", max), off: "SET SESSION sql_select_limit = DEFAULT" }
+    }
+
+    /// MySQL only; MariaDB names it differently and rejects this (callers treat the
+    /// timeout as best effort).
+    fn statement_timeout(&self, secs: u32) -> Option<String> {
+        Some(format!("SET SESSION max_execution_time = {}", u64::from(secs) * 1000))
     }
 
     fn single_row_limit(&self) -> &'static str {

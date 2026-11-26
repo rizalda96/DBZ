@@ -10,7 +10,8 @@ use crate::ui::widgets::{menu_style, ribbon_btn, ribbon_sep};
 const OBJECT_MODES: [(ObjMode, &str); 4] = [(ObjMode::Tables, "Table"), (ObjMode::Views, "View"), (ObjMode::Functions, "Function"), (ObjMode::Users, "User")];
 const FILE_MODES: [(ObjMode, &str); 2] = [(ObjMode::Queries, "Query"), (ObjMode::Backups, "Backup")];
 
-pub fn ribbon(ui: &mut Ui, ws: &Workspace, acts: &mut Vec<Act>) {
+/// `ai` is (chat panel shown, AI working).
+pub fn ribbon(ui: &mut Ui, ws: &Workspace, ai: (bool, bool), acts: &mut Vec<Act>) {
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 2.0;
         connection_button(ui, acts);
@@ -24,7 +25,21 @@ pub fn ribbon(ui: &mut Ui, ws: &Workspace, acts: &mut Vec<Act>) {
         mode_buttons(ui, ws, &FILE_MODES, acts);
         ribbon_sep(ui);
         transfer_buttons(ui, ws, acts);
+        ribbon_sep(ui);
+        ai_button(ui, ai, acts);
     });
+}
+
+/// Shows or hides the AI chat; a small spinner on it while the AI works out of sight.
+fn ai_button(ui: &mut Ui, (open, busy): (bool, bool), acts: &mut Vec<Act>) {
+    let r = ribbon_btn(ui, Icon::Ai, "AI", open, true);
+    if busy && !open {
+        let spot = egui::Rect::from_center_size(r.rect.right_top() + egui::vec2(-10.0, 10.0), egui::vec2(12.0, 12.0));
+        ui.put(spot, egui::Spinner::new().size(12.0));
+    }
+    if r.on_hover_text("AI Assistant (Ctrl+Shift+A)").clicked() {
+        acts.push(Act::AiToggle);
+    }
 }
 
 fn connection_button(ui: &mut Ui, acts: &mut Vec<Act>) {

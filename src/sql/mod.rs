@@ -18,12 +18,14 @@ mod mysql_parts;
 mod parts;
 mod postgres;
 mod postgres_parts;
+mod read_guard;
 mod split;
 mod sql_tokens;
 mod view_source;
 
 pub use beautify::beautify;
-pub use dialect::{dialect_for, Dialect, Explain, TableChange};
+pub use dialect::{dialect_for, CapRows, Dialect, Explain, TableChange};
+pub use read_guard::{check_read, ReadKind};
 pub use parts::{parts_sql, DesignerCaps, IndexParamSpec, OptionKind, OptionSpec, PartsChange, FK_ACTIONS};
 pub use dml::{eq_condition, insert_row};
 pub use exclude_rule::RULE_EVENTS;

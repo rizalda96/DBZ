@@ -59,6 +59,10 @@ fn view_menu(ui: &mut Ui, ws: &Workspace, panes: &mut PaneState, theme: ThemePre
     if ui.checkbox(&mut panes.show_info, "Information Pane").clicked() {
         ui.close();
     }
+    if ui.add(egui::Button::new("AI Assistant").shortcut_text("Ctrl+Shift+A")).clicked() {
+        acts.push(Act::AiToggle);
+        ui.close();
+    }
     ui.separator();
     for m in VIEW_MODES {
         if ui.selectable_label(ws.showing(m), m.label()).clicked() {
@@ -101,6 +105,11 @@ fn tools_menu(ui: &mut Ui, ws: &Workspace, acts: &mut Vec<Act>) {
     if ui.add_enabled(target.is_some(), egui::Button::new("New Backup")).clicked() {
         acts.extend(with(&|c, d| Act::NewBackup(c, d)));
         acts.push(Act::SetMode(ObjMode::Backups));
+        ui.close();
+    }
+    ui.separator();
+    if ui.button("AI Settings…").clicked() {
+        acts.push(Act::ShowAiSettings);
         ui.close();
     }
 }

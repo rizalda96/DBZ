@@ -44,6 +44,7 @@ Sebelum menulis fungsi, widget, atau helper baru:
 | `Dialect::{page_clause, version_query, sample_query, explain, batch_separator, identity_insert, has_matviews}` | paging grid, versi server, "New Query on This Table", Explain (`Explain::Prefix`/`Session`), `GO` + `SET IDENTITY_INSERT` di dump, folder Materialized Views |
 | `parts_sql(d, &PartsChange)`, `Dialect::designer()` (`DesignerCaps`, `IndexParamSpec::applies`), `FK_ACTIONS` | DROP/CREATE index, FK, unique, check, trigger + opsi tabel untuk designer |
 | `RULE_EVENTS`, `ConstraintKind::Exclude` (SQL exclude/rule ada di `sql/exclude_rule.rs`, dipanggil dari `parts_sql`) | tab Excludes & Rules (PostgreSQL) |
+| `check_read(d, sql, ReadKind)`, `Dialect::{read_only_begin, cap_rows, statement_timeout}` (`CapRows`) | statement yang dijalankan AI sendiri: hanya baca (atau hanya plan), transaksi read-only, batas baris di server, timeout |
 | `parse_index_columns(text)`, `index_columns_text(d, &[IndexColumn])`, `index_column_ref(d, col)`, `SORT_ORDERS`, `NULLS_ORDERS` | teks kolom index ↔ baris `IndexColumn` (nama, sub part, collation, operator class, urutan) |
 
 ### Data & file
@@ -64,6 +65,8 @@ Sebelum menulis fungsi, widget, atau helper baru:
 | `Req::task_label()` | `worker/protocol.rs` | request yang memunculkan jendela "Please wait" (otomatis lewat `Dbz::send`) |
 | `fmt_time`, `now_string`, `fmt_bytes`, `sanitize`, `default_dir`, `data_dir` | `shared/` | helper umum |
 | `Store::folder`, `Store::list_sql_files` | `app/persistence.rs` | folder query/backup tersimpan |
+| `ai::{parse_reply, segments, format_sets, format_objects, format_table, clip, system_prompt, backend_for}` | `ai/` | protokol alat AI, potong hasil untuk AI, system prompt, pilih backend |
+| `worker::ask_ai(AiAsk, tx, ctx)`, `Req::AiRead` | `worker/ai_thread.rs`, `worker/ai_reads.rs` | panggil AI di thread sendiri (flag cancel); alat baca AI di koneksi milik AI |
 
 ### Model app — `crate::app`
 | Item | Kegunaan |
@@ -71,6 +74,7 @@ Sebelum menulis fungsi, widget, atau helper baru:
 | `Workspace::{conn, conn_mut, db_mut, kind_of, dialect_of, query_target, tab_mut, showing, refresh_acts}` | akses state |
 | `Sel::{conn, db, in_schema, conn_db}`, `ObjRef::new`, `FolderRef` | selection dan referensi objek/folder |
 | `Dbz::{send, confirm, alert, save_config, scan_files}` | kirim `Req`, dialog konfirmasi, simpan |
+| `AiChat` (`begin_turn`, `accept` → `Step`, `tool_result`, `stop`, `reset`), `ChatItem`, `AiTarget` | state panel chat AI tanpa egui (`app/ai_state.rs`); loop-nya di `app/ai_actions.rs` |
 
 ### Pola yang sudah ada — ikuti, jangan buat paralel
 - Aksi UI → push `Act` ke `acts: &mut Vec<Act>`, diproses `Dbz::do_act` (`app/dispatch.rs`). Widget tidak mengubah state app.

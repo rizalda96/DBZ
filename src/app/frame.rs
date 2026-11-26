@@ -31,6 +31,10 @@ impl eframe::App for Dbz {
             self.do_act(a);
         }
         self.screenshot_step(&ctx);
+        if self.ai.busy.is_some() {
+            // Keeps the loading indicator's seconds moving.
+            ctx.request_repaint_after(std::time::Duration::from_secs(1));
+        }
     }
 }
 
@@ -58,7 +62,8 @@ impl Dbz {
         egui::Panel::top("menu")
             .frame(egui::Frame::new().fill(pal().surface).inner_margin(egui::Margin::symmetric(6, 2)))
             .show(ui, |ui| panes::menu_bar(ui, ws, prefs, self.settings.theme, acts));
-        egui::Panel::top("ribbon").frame(bordered(pal().ribbon_bg).inner_margin(egui::Margin::symmetric(8, 4))).show(ui, |ui| panes::ribbon(ui, ws, acts));
+        let ai = (self.ai.open, self.ai.busy.is_some());
+        egui::Panel::top("ribbon").frame(bordered(pal().ribbon_bg).inner_margin(egui::Margin::symmetric(8, 4))).show(ui, |ui| panes::ribbon(ui, ws, ai, acts));
         egui::Panel::bottom("status")
             .exact_size(26.0)
             .frame(bordered(pal().header_bg).inner_margin(egui::Margin::symmetric(6, 0)))
@@ -69,6 +74,16 @@ impl Dbz {
             .min_size(170.0)
             .frame(bordered(pal().surface))
             .show(ui, |ui| panes::nav(ui, ws, &mut prefs.tree_filter, acts));
+        if self.ai.open {
+            let can_start = self.ai.target.is_some() || ws.sel.conn_db().is_some();
+            let chat = &mut self.ai;
+            egui::Panel::right("ai")
+                .resizable(true)
+                .default_size(360.0)
+                .min_size(260.0)
+                .frame(bordered(pal().surface).inner_margin(egui::Margin::same(6)))
+                .show(ui, |ui| panes::ai_chat(ui, chat, can_start, acts));
+        }
         if prefs.show_info {
             egui::Panel::right("info")
                 .resizable(true)
@@ -104,6 +119,9 @@ impl Dbz {
         let (q, w, f5) = ctx.input_mut(|i| {
             (i.consume_key(egui::Modifiers::COMMAND, egui::Key::Q), i.consume_key(egui::Modifiers::COMMAND, egui::Key::W), i.consume_key(egui::Modifiers::NONE, egui::Key::F5))
         });
+        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND | egui::Modifiers::SHIFT, egui::Key::A)) {
+            acts.push(Act::AiToggle);
+        }
         if let (true, Some(cid)) = (q, self.ws.query_target()) {
             acts.push(Act::NewQuery(cid, self.ws.sel.db.clone().unwrap_or_default(), String::new()));
         }

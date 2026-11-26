@@ -33,6 +33,8 @@ pub enum Icon {
     Minus,
     MoveUp,
     MoveDown,
+    /// The AI assistant: two sparkles.
+    Ai,
 }
 
 const BLUE: Color32 = Color32::from_rgb(0x2f, 0x7d, 0xd1);
@@ -240,7 +242,22 @@ pub fn paint(p: &Painter, r: Rect, icon: Icon) {
             p.line_segment([pos2(k.left(), k.center().y), pos2(k.right(), k.center().y)], Stroke::new(s * 0.13, RED));
         }
         Icon::MoveUp | Icon::MoveDown => move_arrow(p, r, icon == Icon::MoveUp),
+        Icon::Ai => ai_mark(p, r, s),
     }
+}
+
+/// A big and a small sparkle.
+fn ai_mark(p: &Painter, r: Rect, s: f32) {
+    sparkle(p, pos2(r.left() + s * 0.42, r.top() + s * 0.58), s * 0.38, PURPLE);
+    sparkle(p, pos2(r.right() - s * 0.2, r.top() + s * 0.22), s * 0.18, BLUE);
+}
+
+/// A four-pointed star around `c` with arms `arm` long.
+fn sparkle(p: &Painter, c: Pos2, arm: f32, color: Color32) {
+    let w = arm * 0.3;
+    // The star isn't convex, so it is drawn as a tall and a wide diamond.
+    p.add(Shape::convex_polygon(vec![pos2(c.x, c.y - arm), pos2(c.x + w, c.y), pos2(c.x, c.y + arm), pos2(c.x - w, c.y)], color, Stroke::NONE));
+    p.add(Shape::convex_polygon(vec![pos2(c.x - arm, c.y), pos2(c.x, c.y - w), pos2(c.x + arm, c.y), pos2(c.x, c.y + w)], color, Stroke::NONE));
 }
 
 /// The DBZ logo (square app icon, transparent background).

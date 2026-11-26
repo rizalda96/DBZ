@@ -1,7 +1,7 @@
 //! Messages from the UI to the app. Widgets push these; `Dbz::do_act` handles them.
 
 use super::state::{ObjMode, Sel};
-use crate::domain::{ConnConfig, DbKind, RelationKind};
+use crate::domain::{AiConfig, ConnConfig, DbKind, RelationKind};
 use crate::transfer::{ArchivePart, ConnSource};
 use crate::ui::theme::ThemePref;
 use crate::worker::Req;
@@ -109,6 +109,21 @@ pub enum Act {
     Status(String),
     SetTheme(ThemePref),
     ShowAbout,
+    // AI assistant
+    /// Shows or hides the chat panel.
+    AiToggle,
+    /// Sends what is typed in the chat.
+    AiSend,
+    /// Clears the conversation; the next message picks the target again.
+    AiNew,
+    AiStop,
+    /// Opens SQL from an answer in a new query tab.
+    AiOpenSql(String),
+    /// The user answered the AI's proposed change: OK (true) opens it in an editor.
+    AiChangeAnswer(bool),
+    ShowAiSettings,
+    SaveAiSettings(AiConfig),
+    TestAi(AiConfig),
 }
 
 /// Destructive actions waiting for the user's OK.

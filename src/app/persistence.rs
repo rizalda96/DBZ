@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::domain::ConnConfig;
+use crate::domain::{AiConfig, ConnConfig};
 use crate::shared::{data_dir, fmt_time, sanitize};
 use crate::ui::theme::ThemePref;
 
@@ -19,13 +19,15 @@ const PREVIEW_CHARS: usize = 1200;
 pub struct Settings {
     #[serde(default)]
     pub theme: ThemePref,
+    #[serde(default)]
+    pub ai: AiConfig,
 }
 
 impl Settings {
     /// Test helper for screenshots: DBZ_THEME=light|dark picks the theme.
     pub fn from_env() -> Self {
         let theme = serde_json::from_value(serde_json::Value::String(std::env::var("DBZ_THEME").unwrap_or_default())).unwrap_or(ThemePref::Light);
-        Settings { theme }
+        Settings { theme, ..Default::default() }
     }
 }
 

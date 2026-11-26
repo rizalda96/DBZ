@@ -103,7 +103,7 @@ impl Dbz {
     }
 
     /// The schema the tree has selected in `db`, else the database's default one.
-    fn query_schema(&self, cid: u64, db: &str) -> String {
+    pub(super) fn query_schema(&self, cid: u64, db: &str) -> String {
         let sel = &self.ws.sel;
         let selected = sel.schema.clone().filter(|_| sel.cid == Some(cid) && sel.db.as_deref() == Some(db));
         selected.or_else(|| self.ws.conn(cid).and_then(|c| c.db(db)).map(|d| d.default_schema())).unwrap_or_default()

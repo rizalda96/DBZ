@@ -3,7 +3,7 @@
 use std::time::Instant;
 
 use super::actions::Confirm;
-use crate::domain::ConnConfig;
+use crate::domain::{AiConfig, ConnConfig};
 use crate::transfer::{ConnSource, ExportOptions, ImportOptions};
 
 pub enum Dialog {
@@ -19,6 +19,8 @@ pub enum Dialog {
     /// Import Connections: the tool and its file (blank: the tool's default place).
     ImportConns { source: ConnSource, path: String },
     About,
+    /// AI Settings, with the outcome of its Test button.
+    AiSettings { cfg: AiConfig, test: Option<Result<String, String>>, testing: bool },
 }
 
 /// The New / Edit Connection window.
@@ -52,10 +54,13 @@ pub struct DialogState {
     pub conn: Option<ConnDialog>,
     /// Shown as a "please wait" window until the task's reply arrives.
     pub task: Option<RunningTask>,
+    /// (title, message) of a change the AI proposed. Its own slot, so it neither
+    /// replaces nor is replaced by a dialog the user opened.
+    pub ai_confirm: Option<(String, String)>,
 }
 
 impl DialogState {
     pub fn any_open(&self) -> bool {
-        self.alert.is_some() || self.dialog.is_some() || self.conn.is_some() || self.task.is_some()
+        self.alert.is_some() || self.dialog.is_some() || self.conn.is_some() || self.task.is_some() || self.ai_confirm.is_some()
     }
 }
