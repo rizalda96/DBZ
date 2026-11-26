@@ -2,7 +2,6 @@
 
 use super::read_file;
 use crate::db::{DbError, Driver};
-use crate::sql::split_statements;
 
 const ERROR_SNIPPET_CHARS: usize = 80;
 
@@ -10,7 +9,7 @@ pub fn run_file(driver: &mut dyn Driver, db: &str, path: &str, continue_on_error
     let text = read_file(path)?;
     let (mut ok, mut failed) = (0, 0);
     let mut first_err = String::new();
-    for st in split_statements(&text) {
+    for st in driver.dialect().split_script(&text) {
         if driver.ignores(&st) {
             ok += 1;
             continue;

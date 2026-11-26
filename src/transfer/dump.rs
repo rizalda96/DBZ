@@ -4,7 +4,7 @@ use super::write_file;
 use crate::db::{DbError, Driver};
 use crate::domain::{ConnConfig, TableInfo};
 use crate::shared::now_string;
-use crate::sql::insert_row;
+use crate::sql::{insert_row, Dialect};
 
 const RULE: &str = "-- ----------------------------\n";
 
@@ -25,7 +25,8 @@ pub fn dump(driver: &mut dyn Driver, cfg: &ConnConfig, db: &str, path: &str, dat
         out.push_str(&format!("-- View structure for {}\n", t.name));
         if let Ok(d) = driver.ddl(db, &t.name, true) {
             out.push_str(&d);
-            out.push_str(";\n\n");
+            out.push_str(";\n");
+            end_batch(dialect, &mut out);
         }
     }
     out.push_str(dialect.dump_epilogue());
@@ -37,7 +38,19 @@ pub fn dump(driver: &mut dyn Driver, cfg: &ConnConfig, db: &str, path: &str, dat
 fn table_structure(driver: &mut dyn Driver, db: &str, table: &str) -> Result<String, DbError> {
     let drop = format!("DROP TABLE IF EXISTS {};\n", driver.dialect().quote_ident(table));
     let ddl = driver.ddl(db, table, false)?;
-    Ok(format!("{RULE}-- Table structure for {table}\n{RULE}{drop}{ddl}\n\n"))
+    let mut out = format!("{RULE}-- Table structure for {table}\n{RULE}{drop}{ddl}\n");
+    end_batch(driver.dialect(), &mut out);
+    Ok(out)
+}
+
+/// Closes a group of statements: a batch separator line where the server needs one,
+/// then a blank line.
+fn end_batch(dialect: &dyn Dialect, out: &mut String) {
+    if let Some(sep) = dialect.batch_separator() {
+        out.push_str(sep);
+        out.push('\n');
+    }
+    out.push('\n');
 }
 
 /// Appends INSERTs for every row; returns how many.
@@ -48,9 +61,14 @@ fn table_records(driver: &mut dyn Driver, db: &str, table: &str, out: &mut Strin
         return Ok(0);
     }
     out.push_str(&format!("{RULE}-- Records of {table}\n{RULE}"));
+    // Servers that refuse values for auto-number columns are told to take them here.
+    let has_identity = dialect.identity_insert(table, true).is_some() && driver.columns(db, table)?.iter().any(|f| f.auto_inc);
+    let identity = |on| dialect.identity_insert(table, on).filter(|_| has_identity);
+    out.extend(identity(true).map(|s| format!("{};\n", s)));
     for r in &rs.rows {
         out.push_str(&format!("{};\n", insert_row(dialect, table, &rs.columns, r)));
     }
-    out.push('\n');
+    out.extend(identity(false).map(|s| format!("{};\n", s)));
+    end_batch(dialect, out);
     Ok(rs.rows.len())
 }

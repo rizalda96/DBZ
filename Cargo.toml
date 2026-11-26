@@ -2,7 +2,7 @@
 name = "dbz"
 version = "0.1.0"
 edition = "2021"
-description = "Desktop database manager for MySQL, MariaDB and PostgreSQL"
+description = "Desktop database manager for MySQL, MariaDB, PostgreSQL and SQL Server"
 authors = ["rizalda96"]
 homepage = "https://github.com/rizalda96/DBZ"
 
@@ -29,9 +29,35 @@ postgres = { version = "0.19" }
 rfd = "0.18"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# SQL Server. tiberius is async; the driver runs it on its own single-thread tokio
+# runtime, so the rest of the app stays on plain worker threads. TLS comes from the
+# OS (SChannel on Windows, Security.framework on macOS, OpenSSL on Linux), and
+# sql-browser-tokio resolves named instances such as `host\SQLEXPRESS`.
+tiberius = { version = "0.13", default-features = false, features = ["tds73", "native-tls", "sql-browser-tokio"] }
+tokio = { version = "1", features = ["rt", "net", "time"] }
+tokio-util = { version = "0.7", features = ["compat"] }
+futures-util = { version = "0.3", default-features = false }
+# Microsoft Entra sign-in for SQL Server: the token requests go over HTTPS with the
+# same OS TLS as tiberius, and the browser sign-in uses PKCE (sha2 + base64 + getrandom,
+# all already built for the other drivers).
+ureq = { version = "2", default-features = false, features = ["native-tls"] }
+native-tls = "0.2"
+url = "2"
+sha2 = "0.10"
+base64 = "0.22"
+getrandom = "0.3"
+
+# Windows Authentication to SQL Server through SSPI.
+[target.'cfg(windows)'.dependencies]
+tiberius = { version = "0.13", default-features = false, features = ["winauth"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 winit = "0.30"
+
+# Builds OpenSSL into the Linux binary, so the .deb and the AppImage don't depend on
+# the libssl version a distribution ships.
+[target.'cfg(target_os = "linux")'.dependencies]
+openssl = { version = "0.10", features = ["vendored"] }
 
 # The GNU Rust toolchain on this machine has no assembler for `dlltool`, which the
 # upstream `windows-link` needs. This local copy links against the bundled import

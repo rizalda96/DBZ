@@ -62,12 +62,18 @@ pub enum Act {
     // tables and routines
     OpenTable(ObjRef, bool),
     DesignTable(u64, String, Option<String>),
+    /// Opens a view's query in a Design View tab.
+    DesignView(ObjRef),
+    /// Saves a Design View tab's query as its view's definition.
+    RunView(u64),
     DropTables(u64, String, Vec<String>, RelationKind),
     Truncate(ObjRef),
     Rename(ObjRef),
     DropRoutine(ObjRef, String),
     // queries
     NewQuery(u64, String, String),
+    /// A new query that starts with a SELECT of the table, in the server's syntax.
+    QueryTable(ObjRef),
     OpenSavedQuery(ObjRef),
     DeleteQuery(ObjRef),
     SaveQuery(u64),

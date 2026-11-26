@@ -6,9 +6,11 @@ mod index_choices;
 mod matview;
 mod result;
 mod schema;
+mod sql_auth;
 mod table_parts;
 
 pub use connection::{ArchiveTools, ConnConfig, DbKind};
+pub use sql_auth::{Need, SqlAuth};
 pub use matview::MatViewDef;
 pub use index_choices::{Collation, IndexChoices, OpClass, SchemaName};
 pub use result::{first_cell, Cell, ResultSet, Row};

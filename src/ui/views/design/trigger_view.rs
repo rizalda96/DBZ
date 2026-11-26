@@ -5,7 +5,8 @@
 
 use eframe::egui::{self, Rect, RichText, Ui};
 
-use super::form_rows::{body_panel, deferrable_rows, panel_frame, PanelText, FIELD_WIDTH};
+use super::form_rows::{body_panel, deferrable_rows, page_tabs, panel_frame, PanelText, FIELD_WIDTH};
+use super::trigger_options_view;
 use crate::ui::widgets::search_combo;
 use super::parts_grid::{grid, Cell, GridSpec};
 use super::parts_state::PartKind;
@@ -32,29 +33,38 @@ const SCHEMA_WIDTH: f32 = 180.0;
 const NAME_WIDTH: f32 = 230.0;
 
 /// Returns the row whose Update of Fields "…" was clicked, with the cell's rect.
+/// Columns the server doesn't have are left out.
 pub(super) fn trigger_grid(ui: &mut Ui, (id, sel): ((&'static str, u64), &mut Option<usize>), triggers: &mut [TriggerDef], caps: &'static DesignerCaps) -> Option<(usize, Rect)> {
+    let shown = shown_columns(caps);
+    let columns: Vec<(&str, f32)> = COLUMNS.iter().zip(shown).filter(|(_, on)| *on).map(|(c, _)| *c).collect();
     let before: Vec<[bool; 3]> = triggers.iter().map(events).collect();
-    let opened = grid(ui, &GridSpec { id, columns: &COLUMNS }, triggers, sel, |t: &mut TriggerDef| trigger_cells(t, caps));
+    let opened = grid(ui, &GridSpec { id, columns: &columns }, triggers, sel, |t: &mut TriggerDef| {
+        trigger_cells(t, caps).into_iter().zip(shown).filter(|(_, on)| *on).map(|(c, _)| c).collect::<Vec<_>>()
+    });
     if caps.trigger_one_event {
         triggers.iter_mut().zip(before).for_each(|(t, was)| keep_one_event(t, was));
     }
     opened
 }
 
-fn trigger_cells<'b>(t: &'b mut TriggerDef, caps: &DesignerCaps) -> Vec<Cell<'b>> {
+/// Which of `COLUMNS` the server has.
+fn shown_columns(caps: &DesignerCaps) -> [bool; COLUMNS.len()] {
     let extra = caps.trigger_extras;
-    let on = |on: bool, cell: Cell<'b>| if on { cell } else { Cell::Off };
+    [true, extra, true, true, true, true, extra, extra, caps.trigger_enable, caps.trigger_comments]
+}
+
+fn trigger_cells<'b>(t: &'b mut TriggerDef, caps: &DesignerCaps) -> Vec<Cell<'b>> {
     vec![
         Cell::Text(&mut t.name),
-        on(extra, Cell::Choice(&mut t.for_each, &FOR_EACH)),
+        Cell::Choice(&mut t.for_each, &FOR_EACH),
         Cell::Choice(&mut t.fires, caps.trigger_timings),
         Cell::Check(&mut t.insert),
         Cell::Check(&mut t.update),
         Cell::Check(&mut t.delete),
-        on(extra, Cell::Check(&mut t.truncate)),
-        on(extra, Cell::Editor(&t.update_of)),
-        on(extra, Cell::Check(&mut t.enabled)),
-        on(caps.constraint_comments, Cell::Text(&mut t.comment)),
+        Cell::Check(&mut t.truncate),
+        Cell::Editor(&t.update_of),
+        Cell::Check(&mut t.enabled),
+        Cell::Text(&mut t.comment),
     ]
 }
 
@@ -87,6 +97,9 @@ pub(super) fn panel(ui: &mut Ui, t: &mut DesignTab) {
     let id = t.id;
     let sel = t.parts.sel(PartKind::Trigger);
     let trigger = sel.and_then(|i| t.parts.parts.triggers.get_mut(i));
+    if caps.trigger_options {
+        return trigger_options_view::panel(ui, id, trigger);
+    }
     if !caps.trigger_extras {
         let text = PanelText { label: caps.trigger_body, hint: "SET NEW.updated_at = NOW()", empty: "Select a trigger to edit what it runs." };
         return body_panel(ui, ("dtrigger", id), &text, trigger.map(|tr| &mut tr.body));
@@ -97,25 +110,12 @@ pub(super) fn panel(ui: &mut Ui, t: &mut DesignTab) {
             ui.label(RichText::new("Select a trigger to edit what it runs.").color(pal().muted));
             return;
         };
-        let page = page_tabs(ui, id);
+        let page = page_tabs(ui, ("dtrigger_page", id), &[(Page::General, "General"), (Page::Constraint, "Constraint")]);
         egui::Grid::new(("dtrigger_opts", id)).num_columns(2).spacing([24.0, 8.0]).min_col_width(140.0).show(ui, |ui| match page {
             Page::General => general(ui, id, choices, tr),
             Page::Constraint => constraint(ui, id, choices, tr),
         });
     });
-}
-
-/// "General | Constraint"; which page is open is kept in egui memory per tab.
-fn page_tabs(ui: &mut Ui, id: u64) -> Page {
-    let key = egui::Id::unique(("dtrigger_page", id));
-    let mut page: Page = ui.data(|d| d.get_temp(key)).unwrap_or_default();
-    ui.horizontal(|ui| {
-        ui.selectable_value(&mut page, Page::General, "General");
-        ui.selectable_value(&mut page, Page::Constraint, "Constraint");
-    });
-    ui.separator();
-    ui.data_mut(|d| d.insert_temp(key, page));
-    page
 }
 
 fn general(ui: &mut Ui, id: u64, choices: &IndexChoices, tr: &mut TriggerDef) {

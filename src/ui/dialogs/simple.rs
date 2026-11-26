@@ -82,7 +82,11 @@ pub(super) fn confirm(ctx: &egui::Context, title: &str, msg: &str) -> Choice {
 
 pub(super) fn new_db(ctx: &egui::Context, (cid, kind): (u64, DbKind), name: &mut String, charset: &mut String, acts: &mut Vec<Act>) -> Choice {
     let mut choice = Choice::None;
-    let charset_label = if kind == DbKind::PostgreSql { "Encoding:" } else { "Character Set:" };
+    let charset_label = match kind {
+        DbKind::PostgreSql => "Encoding:",
+        DbKind::SqlServer => "Collation:",
+        DbKind::MySql | DbKind::MariaDb => "Character Set:",
+    };
     win("New Database").show(ctx, |ui| {
         egui::Grid::new("newdb").num_columns(2).spacing([10.0, 8.0]).show(ui, |ui| {
             ui.label("Database Name:");
@@ -155,7 +159,7 @@ pub(super) fn about(ctx: &egui::Context) -> Choice {
             });
         });
         ui.add_space(6.0);
-        ui.label("Connects to MySQL, MariaDB and PostgreSQL.");
+        ui.label("Connects to MySQL, MariaDB, PostgreSQL and SQL Server.");
         ui.add_space(8.0);
         if ui.button("   OK   ").clicked() {
             choice = Choice::Ok;

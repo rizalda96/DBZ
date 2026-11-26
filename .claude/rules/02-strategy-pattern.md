@@ -8,8 +8,8 @@ yang tersebar di banyak fungsi.
 
 | Variasi | Trait (strategy) | Implementasi | Factory (satu-satunya `match`) |
 |---|---|---|---|
-| Koneksi & query database | `db::Driver` | `MySqlDriver`, `PgDriver` | `db::open_driver(cfg)` |
-| Sintaks SQL | `sql::Dialect` | `MySqlDialect`, `PgDialect` | `sql::dialect_for(kind)` |
+| Koneksi & query database | `db::Driver` | `MySqlDriver`, `PgDriver`, `MssqlDriver` | `db::open_driver(cfg)` |
+| Sintaks SQL | `sql::Dialect` | `MySqlDialect`, `PgDialect`, `MssqlDialect` | `sql::dialect_for(kind)` |
 | Format export | `transfer::Exporter` | `DelimitedExporter` (CSV/TSV), `JsonExporter`, `SqlExporter`, `HtmlExporter` | `ExportFormat::exporter()` |
 
 Import baru punya satu format (CSV/teks) — **belum** ada trait `Importer` (YAGNI).

@@ -4,6 +4,8 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
+use super::sql_auth::SqlAuth;
+
 const DEFAULT_TIMEOUT_SECS: u64 = 10;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -11,16 +13,18 @@ pub enum DbKind {
     MySql,
     MariaDb,
     PostgreSql,
+    SqlServer,
 }
 
 impl DbKind {
-    pub const ALL: [DbKind; 3] = [DbKind::MySql, DbKind::MariaDb, DbKind::PostgreSql];
+    pub const ALL: [DbKind; 4] = [DbKind::MySql, DbKind::MariaDb, DbKind::PostgreSql, DbKind::SqlServer];
 
     pub fn label(self) -> &'static str {
         match self {
             DbKind::MySql => "MySQL",
             DbKind::MariaDb => "MariaDB",
             DbKind::PostgreSql => "PostgreSQL",
+            DbKind::SqlServer => "SQL Server",
         }
     }
 
@@ -28,6 +32,7 @@ impl DbKind {
         match self {
             DbKind::MySql | DbKind::MariaDb => 3306,
             DbKind::PostgreSql => 5432,
+            DbKind::SqlServer => 1433,
         }
     }
 
@@ -36,7 +41,7 @@ impl DbKind {
     pub fn archive_tools(self) -> Option<ArchiveTools> {
         match self {
             DbKind::PostgreSql => Some(ArchiveTools { dump: "pg_dump", restore: "pg_restore", extension: "dump" }),
-            DbKind::MySql | DbKind::MariaDb => None,
+            DbKind::MySql | DbKind::MariaDb | DbKind::SqlServer => None,
         }
     }
 
@@ -44,6 +49,7 @@ impl DbKind {
         match self {
             DbKind::MySql | DbKind::MariaDb => "root",
             DbKind::PostgreSql => "postgres",
+            DbKind::SqlServer => "sa",
         }
     }
 }
@@ -73,6 +79,16 @@ pub struct ConnConfig {
     pub initial_db: String,
     #[serde(default)]
     pub connect_timeout: u64,
+    /// Accept the server's TLS certificate without checking who issued it (SQL Server).
+    /// Local servers often use a self-signed one.
+    #[serde(default)]
+    pub trust_cert: bool,
+    /// SQL Server only; the other kinds always log in with user name and password.
+    #[serde(default)]
+    pub auth: SqlAuth,
+    /// Microsoft Entra tenant (ID or domain) for the Entra methods that use one.
+    #[serde(default)]
+    pub tenant: String,
 }
 
 fn yes() -> bool {
@@ -93,6 +109,9 @@ impl ConnConfig {
             save_password: true,
             initial_db: String::new(),
             connect_timeout: DEFAULT_TIMEOUT_SECS,
+            trust_cert: false,
+            auth: SqlAuth::default(),
+            tenant: String::new(),
         }
     }
 

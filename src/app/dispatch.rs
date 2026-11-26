@@ -34,11 +34,17 @@ impl Dbz {
             Act::LoadDdl(obj, is_view) => self.load_ddl(obj, is_view),
             Act::OpenTable(obj, is_view) => self.open_table(obj, is_view),
             Act::DesignTable(cid, db, table) => self.design_table(cid, db, table),
+            Act::DesignView(obj) => self.design_view(obj),
+            Act::RunView(tab) => self.run_view(tab),
             Act::DropTables(cid, db, names, view) => self.ask_drop_tables(cid, db, names, view),
             Act::Truncate(obj) => self.ask_truncate(obj),
             Act::Rename(obj) => self.dialogs.dialog = Some(Dialog::Rename { cid: obj.cid, db: obj.db, new: obj.name.clone(), table: obj.name }),
             Act::DropRoutine(obj, kind) => self.ask_drop_routine(obj, kind),
             Act::NewQuery(cid, db, sql) => self.new_query(cid, db, sql),
+            Act::QueryTable(obj) => {
+                let sql = self.ws.dialect_of(obj.cid).sample_query(&obj.name);
+                self.new_query(obj.cid, obj.db, sql)
+            }
             Act::OpenSavedQuery(obj) => self.open_saved_query(obj),
             Act::DeleteQuery(obj) => self.ask_delete_query(obj),
             Act::SaveQuery(tab) => self.save_query(tab),

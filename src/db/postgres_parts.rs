@@ -1,6 +1,6 @@
 //! Reads a PostgreSQL table's indexes, constraints, triggers and options for the designer.
 
-use super::driver::{number, text, Driver};
+use super::driver::{find_word, number, text, Driver};
 use super::DbError;
 use crate::domain::{CheckDef, Collation, ExcludeDef, ForeignKeyDef, IndexChoices, IndexDef, OpClass, Row, RuleDef, SchemaName, TableOptions, TableParts, TriggerDef, UniqueDef};
 
@@ -165,17 +165,6 @@ fn split_rule(def: &str) -> (String, String) {
     (condition, body.to_string())
 }
 
-/// Byte offset of `word` standing alone (whitespace around it), at or after `from`.
-fn find_word(s: &str, word: &str, from: usize) -> Option<usize> {
-    let upper = s.to_ascii_uppercase();
-    let alone = |at: usize| {
-        let before = upper[..at].chars().next_back().is_none_or(char::is_whitespace);
-        let after = upper[at + word.len()..].chars().next().is_none_or(char::is_whitespace);
-        before && after
-    };
-    upper[from..].match_indices(word).map(|(i, _)| i + from).find(|at| alone(*at))
-}
-
 fn strip_word<'a>(s: &'a str, word: &str) -> &'a str {
     match s.get(..word.len()) {
         Some(head) if head.eq_ignore_ascii_case(word) && s[word.len()..].starts_with(char::is_whitespace) => s[word.len()..].trim_start(),
@@ -263,8 +252,7 @@ fn trigger_def(r: &Row) -> TriggerDef {
         deferred: text(&r[11]) == "t",
         ref_schema: text(&r[12]),
         ref_table: text(&r[13]),
-        body: String::new(),
-        orig_name: None,
+        ..Default::default()
     }
 }
 

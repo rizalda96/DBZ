@@ -35,6 +35,24 @@ pub(super) fn body_panel(ui: &mut Ui, salt: (&'static str, u64), text: &PanelTex
     });
 }
 
+/// A row of page tabs ("General | Constraint"); the open page is kept in egui memory
+/// under `salt`, so it stays open while the user moves between rows.
+pub(super) fn page_tabs<P>(ui: &mut Ui, salt: (&'static str, u64), pages: &[(P, &str)]) -> P
+where
+    P: Copy + Default + PartialEq + Send + Sync + 'static,
+{
+    let key = egui::Id::unique(salt);
+    let mut page: P = ui.data(|d| d.get_temp(key)).unwrap_or_default();
+    ui.horizontal(|ui| {
+        for (p, label) in pages {
+            ui.selectable_value(&mut page, *p, *label);
+        }
+    });
+    ui.separator();
+    ui.data_mut(|d| d.insert_temp(key, page));
+    page
+}
+
 /// The look of the property panels under the grids.
 pub(super) fn panel_frame() -> egui::Frame {
     egui::Frame::new().fill(pal().toolbar_bg).inner_margin(8).stroke(Stroke::new(1.0, pal().border))

@@ -3,6 +3,7 @@
 use eframe::egui::{self, RichText, Ui};
 
 use super::object_menus::{db_menu, object_menu, open_act, DbTarget};
+use super::search::{self, SearchBox};
 use crate::app::{Act, ConnState, ConnStatus, DbState, FolderRef, ObjMode, ObjRef, Sel, Workspace};
 use crate::domain::DbKind;
 use crate::ui::icons::Icon;
@@ -19,7 +20,8 @@ type Leaf = (String, bool, Icon);
 
 pub fn nav(ui: &mut Ui, ws: &Workspace, filter_text: &mut String, acts: &mut Vec<Act>) {
     egui::Frame::new().inner_margin(egui::Margin::symmetric(6, 5)).show(ui, |ui| {
-        ui.add(egui::TextEdit::singleline(filter_text).hint_text("Search objects").desired_width(f32::INFINITY));
+        let hint = search::hint(ui.ctx(), "Search objects");
+        ui.add(egui::TextEdit::singleline(filter_text).id(SearchBox::Tree.id()).hint_text(hint).desired_width(f32::INFINITY));
     });
     let filter = filter_text.to_lowercase();
     egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
@@ -159,6 +161,12 @@ impl DbCtx<'_> {
         self.ws.active != 0 || self.ws.mode == ObjMode::Tables
     }
 
+    /// The folders under each schema; Materialized Views only where the server has them.
+    fn schema_folders(&self) -> impl Iterator<Item = ObjMode> {
+        let matviews = self.ws.dialect_of(self.cid).has_matviews();
+        SCHEMA_FOLDERS.into_iter().filter(move |m| *m != ObjMode::MatViews || matviews)
+    }
+
     fn folder_ref(&self, schema: Option<&str>, mode: ObjMode) -> FolderRef {
         FolderRef { cid: self.cid, db: self.d.name.clone(), schema: schema.map(str::to_string), mode }
     }
@@ -173,7 +181,7 @@ struct Folder<'a> {
 
 fn schema_branch(ui: &mut Ui, cx: &DbCtx, schema: &str, acts: &mut Vec<Act>) {
     let filtering = !cx.filter.is_empty();
-    if filtering && SCHEMA_FOLDERS.iter().all(|&m| matching(cx, Some(schema), m).is_empty()) {
+    if filtering && cx.schema_folders().all(|m| matching(cx, Some(schema), m).is_empty()) {
         return;
     }
     let open = cx.d.open_schemas.contains(schema) || filtering;
@@ -187,7 +195,7 @@ fn schema_branch(ui: &mut Ui, cx: &DbCtx, schema: &str, acts: &mut Vec<Act>) {
     if !open {
         return;
     }
-    for mode in SCHEMA_FOLDERS {
+    for mode in cx.schema_folders() {
         folder_branch(ui, cx, Folder { schema: Some(schema), mode, depth: 3 }, acts);
     }
 }

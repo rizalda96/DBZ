@@ -1,6 +1,7 @@
 //! Reusable widgets. Check here before drawing a new button, menu, grid or row.
 
 mod buttons;
+mod code_editor;
 mod dialog;
 mod grid;
 mod highlight;
@@ -12,6 +13,7 @@ mod sql_preview;
 mod tree;
 
 pub use buttons::{icon_btn, ribbon_btn, ribbon_sep, tool_btn, tool_sep, toolbar_frame};
+pub use code_editor::code_editor;
 pub use dialog::{buttons, file_row, win, Choice};
 pub use grid::{arrow, cell_lines, cell_text, col_width, header_cell, Arrow};
 pub use highlight::sql_layouter;

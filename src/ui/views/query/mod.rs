@@ -36,11 +36,11 @@ pub fn editor_with_results(ui: &mut Ui, t: &mut QueryTab) {
 /// Runs the editor's SQL (or its selection), as EXPLAIN when asked; results land in
 /// `t` when the worker answers.
 pub fn start_run(t: &mut QueryTab, explain: bool, acts: &mut Vec<Act>) {
-    let Some(sql) = t.sql_to_run(explain) else {
+    let Some(sql) = t.sql_to_run() else {
         acts.push(Act::Status("Nothing to run".into()));
         return;
     };
     t.running = true;
     t.error = None;
-    acts.push(Act::Send(t.cid, Req::Query { tab: t.id, db: t.db.clone(), schema: t.schema.clone(), sql }));
+    acts.push(Act::Send(t.cid, Req::Query { tab: t.id, db: t.db.clone(), schema: t.schema.clone(), sql, explain }));
 }

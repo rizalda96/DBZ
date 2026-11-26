@@ -3,7 +3,6 @@
 use std::time::Duration;
 
 use crate::domain::ResultSet;
-use crate::sql::split_statements;
 
 const HINT: &str = "Write SQL above and press Run (Ctrl+R). Select part of the text to run just that part.";
 
@@ -54,15 +53,12 @@ impl QueryTab {
         self.selection.is_some_and(|(a, b)| a != b)
     }
 
-    /// The selected text (or everything), as EXPLAIN when asked; None when blank.
-    pub fn sql_to_run(&self, explain: bool) -> Option<String> {
-        let mut sql = match self.selection {
+    /// The selected text (or everything); None when blank.
+    pub fn sql_to_run(&self) -> Option<String> {
+        let sql: String = match self.selection {
             Some((a, b)) if a != b => self.sql.chars().skip(a.min(b)).take(a.abs_diff(b)).collect(),
             _ => self.sql.clone(),
         };
-        if explain {
-            sql = split_statements(&sql).iter().map(|s| format!("EXPLAIN {}", s)).collect::<Vec<_>>().join(";\n");
-        }
         (!sql.trim().is_empty()).then_some(sql)
     }
 

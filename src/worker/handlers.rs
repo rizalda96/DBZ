@@ -5,7 +5,7 @@ use std::time::Instant;
 use super::protocol::{PageQuery, Purpose, Req, Resp, TablePage};
 use crate::db::{DbError, Driver};
 use crate::domain::{first_cell, ConnConfig, ResultSet};
-use crate::sql::split_statements;
+use crate::sql::Explain;
 use crate::transfer;
 
 pub(super) fn handle(d: &mut dyn Driver, cfg: &ConnConfig, req: Req) -> Resp {
@@ -44,7 +44,11 @@ pub(super) fn handle(d: &mut dyn Driver, cfg: &ConnConfig, req: Req) -> Resp {
             let result = d.ddl(&db, &table, is_view);
             Resp::Ddl { db, table, result }
         }
-        Req::Query { tab, db, schema, sql } => run_script(d, tab, (&db, &schema), &sql),
+        Req::ViewSource { db, view } => {
+            let result = d.ddl(&db, &view, true);
+            Resp::ViewSource { db, view, result }
+        }
+        Req::Query { tab, db, schema, sql, explain } => run_script(d, tab, (&db, &schema), (&sql, explain)),
         Req::TableData { tab, db, page } => table_page(d, tab, &db, &page),
         Req::Exec { tab, db, stmts, purpose } => {
             let result = exec(d, &db, &stmts, &purpose);
@@ -61,12 +65,13 @@ pub(super) fn handle(d: &mut dyn Driver, cfg: &ConnConfig, req: Req) -> Resp {
 }
 
 fn version(d: &mut dyn Driver, cfg: &ConnConfig) -> String {
-    d.query(&cfg.initial_db, "SELECT VERSION()").ok().and_then(|sets| first_cell(&sets)).unwrap_or_default()
+    let sql = d.dialect().version_query();
+    d.query(&cfg.initial_db, sql).ok().and_then(|sets| first_cell(&sets)).unwrap_or_default()
 }
 
 /// Runs an editor script in `db`, with unqualified names resolving in `schema` first
-/// (when the server has schemas and one is chosen).
-fn run_script(d: &mut dyn Driver, tab: u64, (db, schema): (&str, &str), sql: &str) -> Resp {
+/// (when the server has schemas and one is chosen); with `explain`, gets the plans instead.
+fn run_script(d: &mut dyn Driver, tab: u64, (db, schema): (&str, &str), (sql, explain): (&str, bool)) -> Resp {
     let start = Instant::now();
     let dialect = d.dialect();
     let use_schema = dialect.use_schema(schema);
@@ -75,7 +80,7 @@ fn run_script(d: &mut dyn Driver, tab: u64, (db, schema): (&str, &str), sql: &st
             return Resp::Query { tab, results: vec![], error: Some((set.clone(), e)), elapsed: start.elapsed() };
         }
     }
-    let (results, error) = run_statements(d, db, sql);
+    let (results, error) = if explain { explain_statements(d, db, sql) } else { run_statements(d, db, sql) };
     if let (Some(_), Some(reset)) = (&use_schema, dialect.reset_schema()) {
         // The script already has its answer. A reset can only fail inside a
         // transaction the script left aborted, and the user sees that on the next run.
@@ -84,10 +89,32 @@ fn run_script(d: &mut dyn Driver, tab: u64, (db, schema): (&str, &str), sql: &st
     Resp::Query { tab, results, error, elapsed: start.elapsed() }
 }
 
-/// Runs each statement of a script, stopping at the first error.
+/// Runs each statement (or batch) of a script, stopping at the first error.
 fn run_statements(d: &mut dyn Driver, db: &str, sql: &str) -> (Vec<ResultSet>, Option<(String, DbError)>) {
+    let pieces = d.dialect().split_script(sql);
+    run_pieces(d, db, pieces)
+}
+
+/// The plans of a script's statements, in the server's own way of asking for them.
+fn explain_statements(d: &mut dyn Driver, db: &str, sql: &str) -> (Vec<ResultSet>, Option<(String, DbError)>) {
+    let dialect = d.dialect();
+    let (on, off) = match dialect.explain() {
+        Explain::Prefix(p) => return run_pieces(d, db, dialect.split_script(sql).into_iter().map(|s| format!("{}{}", p, s)).collect()),
+        Explain::Session { on, off } => (on, off),
+    };
+    if let Err(e) = d.query(db, on) {
+        return (vec![], Some((on.to_string(), e)));
+    }
+    let out = run_statements(d, db, sql);
+    // Plans stay on for the session until this runs, so it runs even after an error;
+    // a failure here shows on the next query anyway.
+    let _ = d.query(db, off);
+    out
+}
+
+fn run_pieces(d: &mut dyn Driver, db: &str, pieces: Vec<String>) -> (Vec<ResultSet>, Option<(String, DbError)>) {
     let mut results = vec![];
-    for stmt in split_statements(sql) {
+    for stmt in pieces {
         match d.query(db, &stmt) {
             Ok(sets) => results.extend(label_sets(sets, &stmt)),
             Err(e) => return (results, Some((stmt, e))),
@@ -117,7 +144,7 @@ fn table_page(d: &mut dyn Driver, tab: u64, db: &str, page: &PageQuery) -> Resp 
     if let Some((col, desc)) = &page.order {
         sql.push_str(&format!(" ORDER BY {} {}", dialect.quote_ident(col), if *desc { "DESC" } else { "ASC" }));
     }
-    sql.push_str(&format!(" LIMIT {} OFFSET {}", page.limit, page.offset));
+    sql.push_str(&dialect.page_clause(page.order.is_some(), page.limit, page.offset));
     let count_sql = format!("SELECT COUNT(*) FROM {}{}", qt, where_);
     let result = fetch_page(d, db, &page.table, &sql, &count_sql);
     Resp::TableData { tab, result, sql, elapsed: start.elapsed() }

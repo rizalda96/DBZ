@@ -64,6 +64,7 @@ pub(super) fn object_menu(ui: &mut Ui, mode: ObjMode, obj: &ObjRef, acts: &mut V
         ObjMode::Tables => table_menu(ui, obj, acts),
         ObjMode::Views => {
             menu_item(ui, acts, "Open View", Act::OpenTable(obj.clone(), true));
+            menu_item(ui, acts, "Design View", Act::DesignView(obj.clone()));
             menu_item(ui, acts, "Delete View", Act::DropTables(obj.cid, obj.db.clone(), vec![obj.name.clone()], RelationKind::View));
             menu_item(ui, acts, "Export Wizard…", Act::Export(obj.clone()));
         }
@@ -102,6 +103,6 @@ fn table_menu(ui: &mut Ui, obj: &ObjRef, acts: &mut Vec<Act>) {
     menu_item(ui, acts, "Import Wizard…", Act::Import(cid, db.clone(), Some(name.clone())));
     menu_item(ui, acts, "Export Wizard…", Act::Export(obj.clone()));
     ui.separator();
-    menu_item(ui, acts, "New Query on This Table", Act::NewQuery(cid, db.clone(), format!("SELECT *\nFROM {}\nLIMIT 100;\n", name)));
+    menu_item(ui, acts, "New Query on This Table", Act::QueryTable(obj.clone()));
     menu_item(ui, acts, "Refresh", Act::RefreshDb(cid, db));
 }

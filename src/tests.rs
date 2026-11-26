@@ -2,7 +2,7 @@
 //! script splitting and CSV parsing.
 
 use crate::domain::{DbKind, FieldDef};
-use crate::sql::{split_statements, Dialect, MySqlDialect, PgDialect, TableChange};
+use crate::sql::{Dialect, MySqlDialect, PgDialect, TableChange};
 use crate::transfer::parse_csv;
 use crate::ui::views::{DataTab, RowState};
 
@@ -12,7 +12,7 @@ fn field(name: &str, ty: &str, key: bool) -> FieldDef {
 
 #[test]
 fn split_respects_quotes_and_comments() {
-    let v = split_statements("SELECT 'a;b'; -- c;\nSELECT `x;y` FROM t; /* ; */");
+    let v = MySqlDialect.split_script("SELECT 'a;b'; -- c;\nSELECT `x;y` FROM t; /* ; */");
     assert_eq!(v.len(), 2);
     assert!(v[0].contains("'a;b'"));
 }

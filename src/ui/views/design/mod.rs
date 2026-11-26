@@ -17,6 +17,7 @@ mod state;
 mod tick_state;
 mod tick_view;
 mod toolbar;
+mod trigger_options_view;
 mod trigger_view;
 mod unique_view;
 

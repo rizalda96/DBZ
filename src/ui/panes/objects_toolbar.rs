@@ -2,6 +2,7 @@
 
 use eframe::egui::{self, Ui};
 
+use super::search::{self, SearchBox};
 use crate::app::{Act, ObjMode, ObjRef, Workspace};
 use crate::domain::RelationKind;
 use crate::sql::dialect_for;
@@ -33,7 +34,8 @@ pub(super) fn show(ui: &mut Ui, ws: &Workspace, filter: &mut String, acts: &mut 
                 ObjMode::Queries | ObjMode::Backups => file_buttons(ui, ws, &t, &mut b),
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.add(egui::TextEdit::singleline(filter).hint_text("Search").desired_width(170.0));
+                let hint = search::hint(ui.ctx(), "Search");
+                ui.add(egui::TextEdit::singleline(filter).id(SearchBox::Objects.id()).hint_text(hint).desired_width(170.0));
             });
         });
     });
@@ -60,6 +62,7 @@ fn code_buttons(ui: &mut Ui, ws: &Workspace, t: &Target, b: &mut Button) {
     match ws.mode {
         ObjMode::Views => {
             b(ui, Icon::View, "Open View", t.has_obj, Act::OpenTable(o.clone(), true));
+            b(ui, Icon::Design, "Design View", t.has_obj, Act::DesignView(o.clone()));
             b(ui, Icon::Add, "New View", t.has_db, Act::NewQuery(o.cid, o.db.clone(), tpl.new_view.into()));
             b(ui, Icon::Delete, "Delete View", t.has_obj, Act::DropTables(o.cid, o.db.clone(), vec![o.name.clone()], RelationKind::View));
         }

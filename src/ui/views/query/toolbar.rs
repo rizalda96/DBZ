@@ -4,7 +4,7 @@ use eframe::egui::{self, Ui};
 
 use super::QueryTab;
 use crate::app::{Act, ConnState, DbState};
-use crate::sql::beautify;
+use crate::sql::{beautify, dialect_for};
 use crate::worker::Req;
 use crate::ui::icons::Icon;
 use crate::ui::widgets::{tool_btn, tool_sep, toolbar_frame};
@@ -79,10 +79,16 @@ fn pick_db(t: &mut QueryTab, d: &DbState, acts: &mut Vec<Act>) {
     }
 }
 
-/// Only on servers with schemas (the list stays empty elsewhere).
+/// Only on servers with schemas (the list stays empty elsewhere) that can make one the
+/// default for a query; SQL Server has schemas but no search path.
 fn schema_picker(ui: &mut Ui, t: &mut QueryTab, conns: &[ConnState]) {
-    let schemas: &[String] = conns.iter().find(|c| c.cfg.id == t.cid).and_then(|c| c.db(&t.db)).map(|d| d.schemas.as_slice()).unwrap_or_default();
+    let conn = conns.iter().find(|c| c.cfg.id == t.cid);
+    let schemas: &[String] = conn.and_then(|c| c.db(&t.db)).map(|d| d.schemas.as_slice()).unwrap_or_default();
     if schemas.is_empty() && t.schema.is_empty() {
+        return;
+    }
+    let probe = schemas.first().unwrap_or(&t.schema);
+    if conn.is_some_and(|c| dialect_for(c.cfg.kind).use_schema(probe).is_none()) {
         return;
     }
     let shown = if t.schema.is_empty() { "(schema)".to_string() } else { t.schema.clone() };

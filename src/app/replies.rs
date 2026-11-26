@@ -51,6 +51,7 @@ impl Dbz {
             Resp::Ddl { db, table, result } => {
                 self.ws.ddl_cache.insert((cid, db, table), result);
             }
+            Resp::ViewSource { db, view, result } => self.view_source(cid, db, view, result),
             Resp::Query { tab, results, error, elapsed } => self.query_done(cid, tab, (results, error), elapsed),
             Resp::TableData { tab, result, sql, elapsed } => self.table_data(tab, result, sql, elapsed),
             Resp::Exec { tab, db, result, purpose } => self.exec_done(cid, (tab, db), result, purpose),
@@ -101,6 +102,10 @@ impl Dbz {
                 Tab::MatView(m) => {
                     m.query.running = false;
                     m.saving = false;
+                }
+                Tab::View(v) => {
+                    v.query.running = false;
+                    v.saving = false;
                 }
             }
         }

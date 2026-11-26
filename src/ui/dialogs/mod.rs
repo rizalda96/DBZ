@@ -1,6 +1,7 @@
 //! Pop-up windows: alerts, confirmations, wizards and the connection editor. They edit
 //! their own state and push `Act`s; the app does the work.
 
+mod conn_auth;
 mod connection;
 mod simple;
 mod wizards;

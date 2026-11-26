@@ -2,7 +2,13 @@
 //! single place that picks one.
 
 mod driver;
+mod entra;
+mod entra_browser;
 mod error;
+mod mssql;
+mod mssql_auth;
+mod mssql_cells;
+mod mssql_parts;
 mod mysql;
 mod mysql_parts;
 mod postgres;

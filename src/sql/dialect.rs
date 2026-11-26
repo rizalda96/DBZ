@@ -1,8 +1,10 @@
 //! The `Dialect` strategy: everything about SQL text that differs between servers.
 
+use super::mssql::MssqlDialect;
 use super::mysql::MySqlDialect;
 use super::parts::{ConstraintKind, DesignerCaps};
 use super::postgres::PgDialect;
+use super::split::split_statements;
 use crate::domain::{Cell, DbKind, FieldDef, IndexDef, TableOptions, TriggerDef};
 
 /// Starter scripts offered by the "New View / Function / User" buttons.
@@ -10,6 +12,14 @@ pub struct SqlTemplates {
     pub new_view: &'static str,
     pub new_function: &'static str,
     pub new_user: &'static str,
+}
+
+/// How a server shows query plans instead of running the statements.
+pub enum Explain {
+    /// Each statement is sent with this in front, e.g. `EXPLAIN `.
+    Prefix(&'static str),
+    /// A session setting turns plans on before the statements and off after them.
+    Session { on: &'static str, off: &'static str },
 }
 
 /// Everything the designer knows about a table edit.
@@ -73,6 +83,54 @@ pub trait Dialect: Sync {
         None
     }
 
+    /// The pieces of a script that go to the server one at a time.
+    fn split_script(&self, sql: &str) -> Vec<String> {
+        split_statements(sql)
+    }
+
+    /// Paging appended to `SELECT … [ORDER BY …]`; `ordered` says whether the query
+    /// already has an ORDER BY.
+    fn page_clause(&self, _ordered: bool, limit: usize, offset: usize) -> String {
+        format!(" LIMIT {} OFFSET {}", limit, offset)
+    }
+
+    /// A query whose only cell is the server's version.
+    fn version_query(&self) -> &'static str {
+        "SELECT VERSION()"
+    }
+
+    /// Starting text of "New Query on This Table", with `table` as the tree names it.
+    fn sample_query(&self, table: &str) -> String {
+        format!("SELECT *\nFROM {}\nLIMIT 100;\n", table)
+    }
+
+    /// A line dumps write between groups of statements, on servers whose scripts are
+    /// run in batches (SQL Server's `GO`).
+    fn batch_separator(&self) -> Option<&'static str> {
+        None
+    }
+
+    /// Lets INSERTs fill `table`'s auto-number column (`on`), or stops that again, on
+    /// servers that refuse those values otherwise.
+    fn identity_insert(&self, _table: &str, _on: bool) -> Option<String> {
+        None
+    }
+
+    fn explain(&self) -> Explain {
+        Explain::Prefix("EXPLAIN ")
+    }
+
+    /// Whether the server has materialized views (their tree folder shows only then).
+    fn has_matviews(&self) -> bool {
+        false
+    }
+
+    /// What replaces the leading CREATE of an existing view's definition so that
+    /// running it changes the view (see `editable_view`).
+    fn redefine_view(&self) -> &'static str {
+        "CREATE OR REPLACE"
+    }
+
     fn str_literal(&self, s: &str) -> String {
         format!("'{}'", self.escape_str(s))
     }
@@ -87,12 +145,14 @@ pub trait Dialect: Sync {
 
 static MYSQL: MySqlDialect = MySqlDialect;
 static POSTGRES: PgDialect = PgDialect;
+static SQL_SERVER: MssqlDialect = MssqlDialect;
 
 /// The one place that picks a dialect for a server kind.
 pub fn dialect_for(kind: DbKind) -> &'static dyn Dialect {
     match kind {
         DbKind::PostgreSql => &POSTGRES,
         DbKind::MySql | DbKind::MariaDb => &MYSQL,
+        DbKind::SqlServer => &SQL_SERVER,
     }
 }
 

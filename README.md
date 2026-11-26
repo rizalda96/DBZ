@@ -2,13 +2,13 @@
 
 <img src="assets/logo/logo.png" alt="DBZ" width="420">
 
-### A fast, native database manager for MySQL, MariaDB and PostgreSQL
+### A fast, native database manager for MySQL, MariaDB, PostgreSQL and SQL Server
 
 One small program for Windows, macOS and Linux. No browser, no server, no runtime.
 
 [![Made with Rust](https://img.shields.io/badge/made%20with-Rust-orange?logo=rust)](https://www.rust-lang.org/)
 [![Platforms](https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-blue)](#-downloads)
-[![Databases](https://img.shields.io/badge/databases-MySQL%20%C2%B7%20MariaDB%20%C2%B7%20PostgreSQL-336791)](#-features)
+[![Databases](https://img.shields.io/badge/databases-MySQL%20%C2%B7%20MariaDB%20%C2%B7%20PostgreSQL%20%C2%B7%20SQL%20Server-336791)](#-features)
 [![Release](https://img.shields.io/github/v/release/rizalda96/DBZ?include_prereleases&label=release)](https://github.com/rizalda96/DBZ/releases/latest)
 [![Status](https://img.shields.io/badge/status-early%20alpha-yellow)](#-status)
 
@@ -54,8 +54,8 @@ testing it. The rules the assistant follows are in [`CLAUDE.md`](CLAUDE.md) and
 
 **🔌 Connections**
 
-MySQL, MariaDB and PostgreSQL. Test Connection, optional saved passwords, connect
-timeout. A tree of databases, schemas, tables, views, materialized views, functions,
+MySQL, MariaDB, PostgreSQL and SQL Server. Test Connection, optional saved passwords,
+connect timeout. A tree of databases, schemas, tables, views, materialized views, functions,
 saved queries and backups.
 
 </td>
@@ -124,7 +124,7 @@ One compiled program. The Windows installer is about 7 MB, and DBZ needs no Java
 1. **Download** the installer for your system from the
    [Releases page](https://github.com/rizalda96/DBZ/releases/latest).
 2. **Install** it like any other app (see [Install](#-install)).
-3. **Connect**: File › New Connection, pick MySQL, MariaDB or PostgreSQL, fill in the
+3. **Connect**: File › New Connection, pick MySQL, MariaDB, PostgreSQL or SQL Server, fill in the
    host, port, user and password, then click **Test Connection**.
 4. **Work**: open a table to edit data, open a query tab to run SQL, or right-click any
    object for designers, dumps, imports and exports.
@@ -140,7 +140,7 @@ One compiled program. The Windows installer is about 7 MB, and DBZ needs no Java
 | **Memory** | 2 GB RAM | 4 GB RAM or more |
 | **Disk** | 50 MB free | 100 MB free, plus room for your dumps and backups |
 | **Screen** | 1280 × 720 | 1920 × 1080 or larger |
-| **Database server** | A MySQL, MariaDB or PostgreSQL server DBZ can reach over the network | A currently supported version (MySQL 8, MariaDB 10.11+, PostgreSQL 13+) |
+| **Database server** | A MySQL, MariaDB or PostgreSQL server DBZ can reach over the network; SQL Server 2016 or Azure SQL Database | A currently supported version (MySQL 8, MariaDB 10.11+, PostgreSQL 13+, SQL Server 2019+) |
 
 > [!NOTE]
 > DBZ draws its window with OpenGL. On a virtual machine or remote desktop without a
@@ -235,6 +235,35 @@ libfuse2`; Ubuntu 24.04: `sudo apt install libfuse2t64`), or run it with
 The Open and Save dialogs use **xdg-desktop-portal**. GNOME and KDE ship it. On other
 desktops, install `xdg-desktop-portal` and `xdg-desktop-portal-gtk`.
 
+### Connecting to SQL Server
+
+DBZ talks to SQL Server directly, so nothing else needs installing (no ODBC driver).
+
+- **Host:** the server name or address. For a named instance, write it after the host,
+  for example `localhost\SQLEXPRESS`. The port is then looked up through the SQL Server
+  Browser service, so that service has to be running on the server.
+- **Authentication:** pick one, as in SSMS:
+  - *SQL Server Authentication*: a SQL Server login. The server must allow
+    "SQL Server and Windows Authentication mode".
+  - *Windows Authentication* (DBZ on Windows only): leave the user name blank for the
+    signed-in Windows user, or enter `DOMAIN\user` and its password.
+  - *Microsoft Entra - Password*: an Entra account without MFA.
+  - *Microsoft Entra - MFA*: signs in through your browser on each connect, with any
+    MFA the tenant asks for. The user name is an optional hint.
+  - *Microsoft Entra - Integrated*: the same browser sign-in, finishing on its own when the
+    browser or Windows is already signed in to Entra.
+  - *Microsoft Entra - Managed Identity*: when DBZ runs on an Azure resource; the client
+    ID is needed only for a user-assigned identity.
+  - *Microsoft Entra - Service Principal*: the app's client ID, client secret and tenant ID.
+
+  **Tenant ID** is optional for the account sign-ins; set it for guest accounts.
+- **Encryption:** connections are always encrypted. Servers on your own machine or
+  network usually have a self-signed certificate; tick **Trust server certificate** for
+  those. Azure SQL Database has a proper certificate and doesn't need it.
+- **Scripts:** the query editor and **Execute SQL File** split scripts on `GO` lines, as
+  SSMS does. Put `GO` between statements that must start their own batch, such as
+  `CREATE VIEW` or `CREATE PROCEDURE`.
+
 ### PostgreSQL archive dumps
 
 The **Dump / Restore Archive File** menus run PostgreSQL's own `pg_dump` and
@@ -314,6 +343,10 @@ sudo pacman -S --needed base-devel pkgconf curl git \
     xdg-desktop-portal xdg-desktop-portal-gtk
 ```
 
+The build also compiles OpenSSL into DBZ (for encrypted SQL Server connections), which
+needs Perl. Debian, Ubuntu and Arch have it already; on Fedora also install
+`perl-FindBin perl-IPC-Cmd perl-File-Compare perl-File-Copy`.
+
 To add a self-built DBZ to your app menu:
 
 ```sh
@@ -323,7 +356,7 @@ cat > ~/.local/share/applications/dbz.desktop <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=DBZ
-Comment=Database manager for MySQL, MariaDB and PostgreSQL
+Comment=Database manager for MySQL, MariaDB, PostgreSQL and SQL Server
 Exec=dbz
 Icon=dbz
 Categories=Development;Database;
@@ -404,9 +437,10 @@ cargo packager --release --formats nsis   # Windows: nsis · macOS: dmg · Linux
 **Does it send my data anywhere?** No. DBZ only talks to the database servers you add,
 and it keeps its settings on your own disk.
 
-**Which databases does it support?** MySQL, MariaDB and PostgreSQL. Some designer tabs
-(Excludes, Rules, materialized views, trigger functions) exist only for PostgreSQL,
-because MySQL and MariaDB have no such objects.
+**Which databases does it support?** MySQL, MariaDB, PostgreSQL and SQL Server. Some
+designer tabs (Excludes, Rules, materialized views, trigger functions) exist only for
+PostgreSQL, because the other servers have no such objects. On SQL Server the table
+designer edits columns only for now; indexes, keys and triggers are next.
 
 **Why does my antivirus or OS warn about it?** The installers aren't code-signed yet.
 See the Windows and macOS notes under [Install](#-install).

@@ -29,8 +29,11 @@ pub enum Req {
     /// Columns of a table a foreign key references, for the Referenced Fields drop-down.
     RefColumns { db: String, schema: String, table: String },
     Ddl { db: String, table: String, is_view: bool },
+    /// A view's definition, to open in an editor (Design View).
+    ViewSource { db: String, view: String },
     /// `schema` is where unqualified names resolve first; empty = the server's default.
-    Query { tab: u64, db: String, schema: String, sql: String },
+    /// `explain` asks for the plans of the statements instead of running them.
+    Query { tab: u64, db: String, schema: String, sql: String, explain: bool },
     TableData { tab: u64, db: String, page: PageQuery },
     Exec { tab: u64, db: String, stmts: Vec<String>, purpose: Purpose },
     Export { db: String, opts: ExportOptions },
@@ -65,6 +68,7 @@ pub enum Purpose {
     SaveData,
     SaveDesign { new_name: String },
     SaveMatView,
+    SaveView,
     Refresh,
     DropTables,
     Other(String),
@@ -85,6 +89,7 @@ pub enum Resp {
     IndexChoices(String, Result<IndexChoices, DbError>),
     RefColumns { db: String, schema: String, table: String, result: Result<Vec<String>, DbError> },
     Ddl { db: String, table: String, result: Result<String, DbError> },
+    ViewSource { db: String, view: String, result: Result<String, DbError> },
     Query { tab: u64, results: Vec<ResultSet>, error: Option<(String, DbError)>, elapsed: Duration },
     TableData { tab: u64, result: Result<TablePage, DbError>, sql: String, elapsed: Duration },
     Exec { tab: u64, db: String, result: Result<u64, DbError>, purpose: Purpose },

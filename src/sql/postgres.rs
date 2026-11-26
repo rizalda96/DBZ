@@ -180,6 +180,10 @@ impl Dialect for PgDialect {
     fn constraint_comment(&self, table: &str, name: &str, comment: &str) -> Option<String> {
         Some(format!("COMMENT ON CONSTRAINT {} ON {} IS {}", self.quote_ident(name), self.quote_ident(table), self.str_literal(comment)))
     }
+
+    fn has_matviews(&self) -> bool {
+        true
+    }
 }
 
 fn serial_type(ty: &str) -> &'static str {

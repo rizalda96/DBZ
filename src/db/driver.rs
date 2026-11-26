@@ -1,5 +1,6 @@
 //! The `Driver` strategy and its factory.
 
+use super::mssql::MssqlDriver;
 use super::mysql::MySqlDriver;
 use super::postgres::PgDriver;
 use super::DbError;
@@ -58,6 +59,7 @@ pub fn open_driver(cfg: &ConnConfig) -> Result<Box<dyn Driver>, DbError> {
     match cfg.kind {
         DbKind::MySql | DbKind::MariaDb => Ok(Box::new(MySqlDriver::connect(cfg)?)),
         DbKind::PostgreSql => Ok(Box::new(PgDriver::connect(cfg)?)),
+        DbKind::SqlServer => Ok(Box::new(MssqlDriver::connect(cfg)?)),
     }
 }
 
@@ -69,4 +71,16 @@ pub(super) fn text(c: &Cell) -> String {
 /// A catalogue cell parsed as a number.
 pub(super) fn number<T: std::str::FromStr>(c: &Cell) -> Option<T> {
     c.as_ref().and_then(|v| v.parse().ok())
+}
+
+/// Byte offset of `word` standing alone (whitespace around it) in an object's
+/// definition text, at or after `from`. `word` is upper case; the match ignores case.
+pub(super) fn find_word(s: &str, word: &str, from: usize) -> Option<usize> {
+    let upper = s.to_ascii_uppercase();
+    let alone = |at: usize| {
+        let before = upper[..at].chars().next_back().is_none_or(char::is_whitespace);
+        let after = upper[at + word.len()..].chars().next().is_none_or(char::is_whitespace);
+        before && after
+    };
+    upper[from..].match_indices(word).map(|(i, _)| i + from).find(|at| alone(*at))
 }

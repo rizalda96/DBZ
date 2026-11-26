@@ -2,6 +2,7 @@
 
 use eframe::egui::{self, vec2, RichText, Sense, Ui};
 
+use super::conn_auth::{login_rows, uses_password};
 use crate::ui::widgets::win;
 use crate::app::{Act, ConnDialog};
 use crate::domain::{ConnConfig, DbKind};
@@ -31,7 +32,7 @@ pub(super) fn show(ctx: &egui::Context, d: &mut ConnDialog, acts: &mut Vec<Act>)
                 advanced_page(ui, &mut d.cfg);
             }
         });
-        if !d.cfg.save_password {
+        if !d.cfg.save_password && uses_password(&d.cfg) {
             ui.label(RichText::new("It will be kept only until the app closes.").color(pal().muted).size(12.0));
         }
         ui.add_space(8.0);
@@ -90,14 +91,20 @@ fn server_fields(ui: &mut Ui, cfg: &mut ConnConfig) {
     ui.label("Port:");
     number_field(ui, &mut cfg.port);
     ui.end_row();
-    ui.label("User Name:");
-    ui.add(egui::TextEdit::singleline(&mut cfg.user).desired_width(300.0));
-    ui.end_row();
-    ui.label("Password:");
-    ui.add(egui::TextEdit::singleline(&mut cfg.password).password(true).desired_width(300.0));
+    login_rows(ui, cfg);
+    if cfg.kind == DbKind::SqlServer {
+        sql_server_fields(ui, cfg);
+    }
+}
+
+/// A named instance goes in the host (`server\SQLEXPRESS`); the connection is always
+/// encrypted, and self-signed certificates need the user's say-so.
+fn sql_server_fields(ui: &mut Ui, cfg: &mut ConnConfig) {
+    ui.label("");
+    ui.label(RichText::new("Named instance: write it after the host, e.g. localhost\\SQLEXPRESS (the port is then ignored).").color(pal().muted).size(12.0));
     ui.end_row();
     ui.label("");
-    ui.checkbox(&mut cfg.save_password, "Save password");
+    ui.checkbox(&mut cfg.trust_cert, "Trust server certificate").on_hover_text("Accept a self-signed certificate. Only tick this for servers you know.");
     ui.end_row();
 }
 

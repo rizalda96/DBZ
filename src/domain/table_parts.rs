@@ -154,6 +154,17 @@ pub struct TriggerDef {
     /// The table named in FROM (often the other side of a foreign key).
     pub ref_schema: String,
     pub ref_table: String,
+    /// EXECUTE AS (SQL Server): "", "CALLER", "OWNER", "SELF" or "USER", which runs
+    /// it as `execute_as_user`.
+    pub execute_as: String,
+    pub execute_as_user: String,
+    /// WITH ENCRYPTION, NOT FOR REPLICATION and WITH APPEND (SQL Server).
+    pub encrypted: bool,
+    pub not_for_replication: bool,
+    pub with_append: bool,
+    /// The body names a CLR method, `[assembly].[class].[method]`, instead of holding
+    /// statements (SQL Server's EXTERNAL NAME).
+    pub external: bool,
     pub comment: String,
     pub orig_name: Option<String>,
 }

@@ -74,6 +74,11 @@ pub struct DesignerCaps {
     pub constraint_comments: bool,
     /// Header of the trigger column that holds the function call or statement.
     pub trigger_body: &'static str,
+    /// Triggers can be disabled (PostgreSQL, SQL Server).
+    pub trigger_enable: bool,
+    pub trigger_comments: bool,
+    /// SQL Server's trigger panel: Definition plus Advanced (EXECUTE AS, encryption, …).
+    pub trigger_options: bool,
     /// Index columns take a prefix length (MySQL).
     pub index_sub_part: bool,
     /// Index columns take a collation, an operator class and a NULLS order (PostgreSQL).

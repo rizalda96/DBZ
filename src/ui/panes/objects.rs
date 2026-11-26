@@ -11,7 +11,6 @@ use crate::ui::icons::{self, Icon};
 use crate::ui::theme::pal;
 use crate::ui::widgets::{result_grid, ObjRow, ObjectTable, RowEv};
 
-const WELCOME_KINDS: [DbKind; 3] = [DbKind::MySql, DbKind::MariaDb, DbKind::PostgreSql];
 const TABLE_HEADERS: [&str; 6] = ["Name", "Rows", "Data Length", "Engine", "Modified Date", "Comment"];
 const VIEW_HEADERS: [&str; 3] = ["Name", "Owner / Engine", "Comment"];
 
@@ -66,7 +65,7 @@ fn welcome(ui: &mut Ui, acts: &mut Vec<Act>) {
         ui.label(RichText::new("Welcome to DBZ").size(20.0).strong());
         ui.label(RichText::new("Select a connection on the left, or create a new one.").color(pal().muted));
         ui.add_space(12.0);
-        for k in WELCOME_KINDS {
+        for k in DbKind::ALL {
             if ui.button(format!("New {} Connection…", k.label())).clicked() {
                 acts.push(Act::NewConn(k));
             }

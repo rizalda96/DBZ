@@ -5,6 +5,7 @@ use eframe::egui::{self, Stroke, Ui};
 use super::{Act, Dbz, Tab};
 use crate::ui::splash::{show_splash, splash_frame};
 use crate::ui::theme::{self, pal};
+use crate::ui::panes::SearchBox;
 use crate::ui::{dialogs, panes, views};
 
 impl eframe::App for Dbz {
@@ -92,11 +93,14 @@ impl Dbz {
             Tab::Data(t) => views::data_view(ui, t, acts),
             Tab::Design(t) => views::design_view(ui, t, acts),
             Tab::MatView(t) => views::matview_view(ui, t, acts),
+            Tab::View(t) => views::view_def_view(ui, t, acts),
         }
     }
 
-    /// Ctrl+Q new query, Ctrl+W close tab, F5 refresh (or reload the data tab).
+    /// Ctrl+Q new query, Ctrl+W close tab, F5 refresh (or reload the data tab), Ctrl+F search.
     fn shortcuts(&mut self, ctx: &egui::Context, acts: &mut Vec<Act>) {
+        let search = if self.ws.active == 0 { (SearchBox::Objects, &self.panes.obj_filter) } else { (SearchBox::Tree, &self.panes.tree_filter) };
+        panes::search_shortcut(ctx, search.0, search.1);
         let (q, w, f5) = ctx.input_mut(|i| {
             (i.consume_key(egui::Modifiers::COMMAND, egui::Key::Q), i.consume_key(egui::Modifiers::COMMAND, egui::Key::W), i.consume_key(egui::Modifiers::NONE, egui::Key::F5))
         });

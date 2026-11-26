@@ -1,6 +1,6 @@
 # DBZ
 
-Desktop database manager (MySQL, MariaDB, PostgreSQL) dengan Rust + eframe/egui. Lihat `README.md`.
+Desktop database manager (MySQL, MariaDB, PostgreSQL, SQL Server) dengan Rust + eframe/egui. Lihat `README.md`.
 
 ## Perintah
 

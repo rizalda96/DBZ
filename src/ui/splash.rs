@@ -14,7 +14,7 @@ const HOLD: Duration = Duration::from_millis(1400);
 const FADE: Duration = Duration::from_millis(400);
 const LOGO_SIZE: f32 = 112.0;
 const BAR_WIDTH: f32 = 220.0;
-const TAGLINE: &str = "Database manager for MySQL, MariaDB and PostgreSQL";
+const TAGLINE: &str = "Database manager for MySQL, MariaDB, PostgreSQL and SQL Server";
 
 /// One frame of the splash.
 #[derive(Clone, Copy, Debug, PartialEq)]

@@ -12,6 +12,7 @@ mod exec_replies;
 mod file_actions;
 mod frame;
 mod matview_actions;
+mod view_actions;
 mod persistence;
 mod replies;
 mod screenshot;

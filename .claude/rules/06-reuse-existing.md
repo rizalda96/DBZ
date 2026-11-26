@@ -25,6 +25,7 @@ Sebelum menulis fungsi, widget, atau helper baru:
 | `sql_preview(ui, statements, empty)` | halaman "SQL Preview" designer (read-only, berwarna) |
 | `search_list(ui, id, current, options)`, `multi_search_list(ui, id, chosen, options)`, `forget_search(ui, id)` | isi dropdown yang bisa dicari, satu pilihan atau centang banyak (pakai di `Popup`/`ComboBox` dengan `CloseOnClickOutside`) |
 | `sql_layouter` | pewarnaan sintaks SQL untuk `TextEdit::layouter` |
+| `code_editor(ui, salt, text, min_lines)` | editor SQL bernomor baris + pewarnaan (query editor, definisi trigger); pemanggil membungkusnya dengan `ScrollArea` |
 
 ### UI — lainnya
 | Fungsi | File | Kegunaan |
@@ -38,7 +39,9 @@ Sebelum menulis fungsi, widget, atau helper baru:
 |---|---|
 | `dialect_for(kind)` → `&dyn Dialect` | `quote_ident`, `literal`, `str_literal`, `create_table`, `alter_table`, `rename_table`, `create_database`, `templates()`, … |
 | `insert_row(d, table, cols, row)`, `eq_condition(d, col, value)` | INSERT dan `col = v` / `col IS NULL` |
-| `split_statements(sql)`, `beautify(sql)`, `is_keyword(word)` | skrip SQL |
+| `split_view(d, ddl)`, `view_statement(head, query)`, `Dialect::redefine_view` | definisi view → (header `CREATE OR REPLACE`/`ALTER … AS`, query) untuk tab Design View, dan sebaliknya saat Run |
+| `Dialect::split_script(sql)`, `beautify(sql)`, `is_keyword(word)` | skrip SQL: potongan yang dikirim satu per satu (`;` di MySQL/PostgreSQL, baris `GO` di SQL Server) |
+| `Dialect::{page_clause, version_query, sample_query, explain, batch_separator, identity_insert, has_matviews}` | paging grid, versi server, "New Query on This Table", Explain (`Explain::Prefix`/`Session`), `GO` + `SET IDENTITY_INSERT` di dump, folder Materialized Views |
 | `parts_sql(d, &PartsChange)`, `Dialect::designer()` (`DesignerCaps`, `IndexParamSpec::applies`), `FK_ACTIONS` | DROP/CREATE index, FK, unique, check, trigger + opsi tabel untuk designer |
 | `RULE_EVENTS`, `ConstraintKind::Exclude` (SQL exclude/rule ada di `sql/exclude_rule.rs`, dipanggil dari `parts_sql`) | tab Excludes & Rules (PostgreSQL) |
 | `parse_index_columns(text)`, `index_columns_text(d, &[IndexColumn])`, `index_column_ref(d, col)`, `SORT_ORDERS`, `NULLS_ORDERS` | teks kolom index ↔ baris `IndexColumn` (nama, sub part, collation, operator class, urutan) |
@@ -53,6 +56,7 @@ Sebelum menulis fungsi, widget, atau helper baru:
 | `Driver::table_parts` | `db/driver.rs` | baca index/FK/unique/check/trigger/opsi dari server |
 | `Driver::index_choices`, `IndexChoices::{collations_in, opclasses_for}` | `db/driver.rs`, `domain/index_choices.rs` | daftar schema, collation, operator class untuk dropdown index |
 | `ConnConfig::blank`, `timeout`, `for_storage` | `domain/connection.rs` | konfigurasi koneksi |
+| `SqlAuth::{ALL, label, fields}`, `Need` | `domain/sql_auth.rs` | metode autentikasi SQL Server + field login yang dipakai tiap metode |
 | `parse_csv`, `ExportFormat::exporter()` | `transfer/` | import/export |
 | `dump_archive`, `restore_archive`, `DbKind::archive_tools()` | `transfer/archive.rs`, `domain/connection.rs` | dump/restore format server sendiri (PostgreSQL `.dump`) lewat `pg_dump`/`pg_restore` |
 | `Req::task_label()` | `worker/protocol.rs` | request yang memunculkan jendela "Please wait" (otomatis lewat `Dbz::send`) |

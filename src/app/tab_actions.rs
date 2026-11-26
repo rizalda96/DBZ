@@ -83,7 +83,7 @@ impl Dbz {
 
     /// An SQL editor's state in `db` (the first expanded or first database when empty),
     /// in the schema the tree has selected.
-    fn editor_state(&mut self, cid: u64, db: String, sql: String) -> QueryTab {
+    pub(super) fn editor_state(&mut self, cid: u64, db: String, sql: String) -> QueryTab {
         let db = if db.is_empty() { self.ws.conn(cid).and_then(|c| c.dbs.iter().find(|d| d.expanded).or(c.dbs.first())).map(|d| d.name.clone()).unwrap_or_default() } else { db };
         let mut q = QueryTab::new(self.new_tab_id(), cid, db, sql);
         q.schema = self.query_schema(cid, &q.db);
@@ -92,7 +92,7 @@ impl Dbz {
 
     /// Opens a tab with an SQL editor; when its database's schemas aren't known yet they
     /// are asked for, and its schema is filled in when they arrive (`replies::schemas`).
-    fn push_editor_tab(&mut self, mut tab: Tab) {
+    pub(super) fn push_editor_tab(&mut self, mut tab: Tab) {
         let cid = tab.cid();
         let missing = tab.query_mut().filter(|q| q.schema.is_empty() && !q.db.is_empty()).map(|q| q.db.clone());
         self.push_tab(tab);
