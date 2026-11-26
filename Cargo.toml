@@ -1,6 +1,6 @@
 [package]
 name = "dbz"
-version = "0.2.0"
+version = "1.0.0"
 edition = "2021"
 description = "Desktop database manager for MySQL, MariaDB, PostgreSQL and SQL Server"
 authors = ["rizalda96"]
