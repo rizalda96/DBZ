@@ -55,7 +55,7 @@ testing it. The rules the assistant follows are in [`CLAUDE.md`](CLAUDE.md) and
 **🔌 Connections**
 
 MySQL, MariaDB, PostgreSQL and SQL Server. Test Connection, optional saved passwords,
-connect timeout. A tree of databases, schemas, tables, views, materialized views, functions,
+connect timeout. Import connections (with passwords) from Navicat, HeidiSQL and DBeaver. A tree of databases, schemas, tables, views, materialized views, functions,
 saved queries and backups.
 
 </td>
@@ -125,7 +125,8 @@ One compiled program. The Windows installer is about 7 MB, and DBZ needs no Java
    [Releases page](https://github.com/rizalda96/DBZ/releases/latest).
 2. **Install** it like any other app (see [Install](#-install)).
 3. **Connect**: File › New Connection, pick MySQL, MariaDB, PostgreSQL or SQL Server, fill in the
-   host, port, user and password, then click **Test Connection**.
+   host, port, user and password, then click **Test Connection**. Already set up in another
+   tool? File › Import Connections takes them over from Navicat, HeidiSQL or DBeaver.
 4. **Work**: open a table to edit data, open a query tab to run SQL, or right-click any
    object for designers, dumps, imports and exports.
 

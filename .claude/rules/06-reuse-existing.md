@@ -58,6 +58,8 @@ Sebelum menulis fungsi, widget, atau helper baru:
 | `ConnConfig::blank`, `timeout`, `for_storage` | `domain/connection.rs` | konfigurasi koneksi |
 | `SqlAuth::{ALL, label, fields}`, `Need` | `domain/sql_auth.rs` | metode autentikasi SQL Server + field login yang dipakai tiap metode |
 | `parse_csv`, `ExportFormat::exporter()` | `transfer/` | import/export |
+| `import_connections(source, path)`, `ConnSource::importer()` | `transfer/conn_import/` | ambil koneksi + password dari Navicat (`.ncx`/registry), HeidiSQL (settings/registry), DBeaver (`data-sources.json`) |
+| `ConnConfig::same_login` | `domain/connection.rs` | koneksi ke server + user yang sama (lewati duplikat saat import) |
 | `dump_archive`, `restore_archive`, `DbKind::archive_tools()` | `transfer/archive.rs`, `domain/connection.rs` | dump/restore format server sendiri (PostgreSQL `.dump`) lewat `pg_dump`/`pg_restore` |
 | `Req::task_label()` | `worker/protocol.rs` | request yang memunculkan jendela "Please wait" (otomatis lewat `Dbz::send`) |
 | `fmt_time`, `now_string`, `fmt_bytes`, `sanitize`, `default_dir`, `data_dir` | `shared/` | helper umum |

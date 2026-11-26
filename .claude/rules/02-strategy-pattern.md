@@ -10,6 +10,7 @@ yang tersebar di banyak fungsi.
 |---|---|---|---|
 | Koneksi & query database | `db::Driver` | `MySqlDriver`, `PgDriver`, `MssqlDriver` | `db::open_driver(cfg)` |
 | Sintaks SQL | `sql::Dialect` | `MySqlDialect`, `PgDialect`, `MssqlDialect` | `sql::dialect_for(kind)` |
+| Import koneksi dari tool lain | `transfer::conn_import::ConnImporter` | `Navicat`, `HeidiSql`, `DBeaver` | `ConnSource::importer()` |
 | Format export | `transfer::Exporter` | `DelimitedExporter` (CSV/TSV), `JsonExporter`, `SqlExporter`, `HtmlExporter` | `ExportFormat::exporter()` |
 
 Import baru punya satu format (CSV/teks) — **belum** ada trait `Importer` (YAGNI).

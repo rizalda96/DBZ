@@ -1,4 +1,4 @@
-//! Export, Import and Execute SQL File wizards.
+//! Export, Import, Execute SQL File and Import Connections wizards.
 
 use std::path::Path;
 
@@ -7,7 +7,7 @@ use eframe::egui::{self, RichText, Ui};
 use crate::ui::widgets::{buttons, file_row, win, Choice};
 use crate::app::Act;
 use crate::shared::sanitize;
-use crate::transfer::{ExportFormat, ExportOptions, ImportOptions};
+use crate::transfer::{ConnSource, ExportFormat, ExportOptions, ImportOptions};
 use crate::worker::Req;
 
 pub(super) fn export(ctx: &egui::Context, (cid, db): (u64, &str), opts: &mut ExportOptions, acts: &mut Vec<Act>) -> Choice {
@@ -111,6 +111,33 @@ pub(super) fn run_file(ctx: &egui::Context, (cid, db): (u64, &str), path: &mut S
     if choice == Choice::Ok {
         acts.push(Act::Status("Running SQL file…".into()));
         acts.push(Act::Send(cid, Req::RunFile { db: db.to_string(), path: path.clone(), continue_on_error: *cont }));
+    }
+    choice
+}
+
+pub(super) fn import_conns(ctx: &egui::Context, source: &mut ConnSource, path: &mut String, acts: &mut Vec<Act>) -> Choice {
+    let mut choice = Choice::None;
+    win("Import Connections").show(ctx, |ui| {
+        ui.set_max_width(380.0);
+        ui.label(RichText::new("Add the saved connections of another tool, passwords included.").strong());
+        ui.add_space(6.0);
+        ui.horizontal(|ui| {
+            for s in ConnSource::ALL {
+                if ui.radio_value(source, s, s.importer().label()).changed() {
+                    path.clear();
+                }
+            }
+        });
+        let importer = source.importer();
+        ui.add_space(6.0);
+        ui.label(RichText::new(importer.hint()).weak());
+        ui.add_space(4.0);
+        let (name, exts) = importer.filter();
+        file_row(ui, path, "(default location)", || rfd::FileDialog::new().add_filter(name, exts).add_filter("All files", &["*"]).pick_file());
+        choice = buttons(ui, "Import", true);
+    });
+    if choice == Choice::Ok {
+        acts.push(Act::ImportConns(*source, path.clone()));
     }
     choice
 }

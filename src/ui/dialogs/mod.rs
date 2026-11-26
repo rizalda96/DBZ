@@ -45,6 +45,7 @@ fn draw(ctx: &egui::Context, dialog: &mut Dialog, ws: &Workspace, acts: &mut Vec
         Dialog::NameMatView { tab, name } => simple::name_matview(ctx, *tab, name, acts),
         Dialog::Rename { cid, db, table, new } => simple::rename(ctx, (*cid, ws.dialect_of(*cid)), (db, table), new, acts),
         Dialog::About => simple::about(ctx),
+        Dialog::ImportConns { source, path } => wizards::import_conns(ctx, source, path, acts),
         Dialog::Export { cid, db, opts } => wizards::export(ctx, (*cid, db), opts, acts),
         Dialog::Import { cid, db, opts } => {
             let tables: Vec<String> = ws.conn(*cid).and_then(|c| c.db(db)).map(|d| d.tables.iter().filter(|t| !t.is_view).map(|t| t.name.clone()).collect()).unwrap_or_default();

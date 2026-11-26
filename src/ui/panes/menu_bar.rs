@@ -38,6 +38,8 @@ fn file_menu(ui: &mut Ui, ws: &Workspace, acts: &mut Vec<Act>) {
             menu_item(ui, acts, k.label(), Act::NewConn(k));
         }
     });
+    menu_item(ui, acts, "Import Connections…", Act::ShowImportConns);
+    ui.separator();
     let new_query = match ws.query_target() {
         Some(cid) => Act::NewQuery(cid, ws.sel.db.clone().unwrap_or_default(), String::new()),
         None => Act::Alert("New Query".into(), "Create a connection first.".into()),

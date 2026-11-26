@@ -4,6 +4,7 @@ use std::time::Instant;
 
 use super::{ConnDialog, ConnState, ConnStatus, Confirm, Dbz, RunningTask, Sel};
 use crate::domain::{ConnConfig, DbKind};
+use crate::transfer::{import_connections, ConnSource};
 use crate::ui::theme::ThemePref;
 use crate::worker::{self, Req};
 
@@ -164,6 +165,54 @@ impl Dbz {
         if reopen {
             self.open_conn(id);
         }
+    }
+
+    /// Adds another tool's connections, skipping ones already in the list, and reports
+    /// what happened.
+    pub(super) fn import_conns(&mut self, source: ConnSource, path: &str) {
+        const TITLE: &str = "Import Connections";
+        let imported = match import_connections(source, path) {
+            Ok(i) => i,
+            Err(e) => return self.alert(TITLE, e.to_string()),
+        };
+        let (mut added, mut existing, mut filled) = (0, 0, 0);
+        for mut cfg in imported.conns {
+            if let Some(c) = self.ws.conns.iter_mut().find(|c| c.cfg.same_login(&cfg)) {
+                // A re-import fills in a password that was missing before (e.g. the first
+                // run couldn't reach this machine's key), but leaves everything else.
+                if c.cfg.password.is_empty() && !cfg.password.is_empty() {
+                    c.cfg.password = cfg.password;
+                    filled += 1;
+                } else {
+                    existing += 1;
+                }
+                continue;
+            }
+            cfg.id = self.ids.next_conn;
+            self.ids.next_conn += 1;
+            self.ws.conns.push(ConnState::new(cfg));
+            added += 1;
+        }
+        if added > 0 || filled > 0 {
+            self.save_config();
+        }
+        let mut msg = format!("Imported {} connection(s) from {}.", added, source.importer().label());
+        if filled > 0 {
+            msg.push_str(&format!("
+Added the password to {} connection(s) already in the list.", filled));
+        }
+        if existing > 0 {
+            msg.push_str(&format!("
+{} were already in the list.", existing));
+        }
+        if !imported.skipped.is_empty() {
+            msg.push_str(&format!("
+
+Skipped:
+{}", imported.skipped.join("
+")));
+        }
+        self.alert(TITLE, msg);
     }
 
     pub(super) fn save_config(&mut self) {

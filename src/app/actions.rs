@@ -2,7 +2,7 @@
 
 use super::state::{ObjMode, Sel};
 use crate::domain::{ConnConfig, DbKind, RelationKind};
-use crate::transfer::ArchivePart;
+use crate::transfer::{ArchivePart, ConnSource};
 use crate::ui::theme::ThemePref;
 use crate::worker::Req;
 
@@ -44,6 +44,10 @@ pub enum Act {
     TestConn(ConnConfig),
     SaveConn { editing: Option<u64>, cfg: ConnConfig },
     CloseConnDialog,
+    /// File › Import Connections: opens its dialog.
+    ShowImportConns,
+    /// Reads another tool's connections from a file (blank: its default place) and adds them.
+    ImportConns(ConnSource, String),
     LoadUsers(u64),
     // databases
     ToggleDb(u64, String),

@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use super::actions::Confirm;
 use crate::domain::ConnConfig;
-use crate::transfer::{ExportOptions, ImportOptions};
+use crate::transfer::{ConnSource, ExportOptions, ImportOptions};
 
 pub enum Dialog {
     Confirm { title: String, msg: String, action: Confirm },
@@ -16,6 +16,8 @@ pub enum Dialog {
     /// The name of a new materialized view, asked on its first save.
     NameMatView { tab: u64, name: String },
     Rename { cid: u64, db: String, table: String, new: String },
+    /// Import Connections: the tool and its file (blank: the tool's default place).
+    ImportConns { source: ConnSource, path: String },
     About,
 }
 

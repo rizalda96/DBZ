@@ -121,6 +121,12 @@ impl ConnConfig {
         Duration::from_secs(secs)
     }
 
+    /// Same server and login, whatever the connection is called; used to skip
+    /// connections that are already in the list when importing.
+    pub fn same_login(&self, other: &ConnConfig) -> bool {
+        self.kind == other.kind && self.host.eq_ignore_ascii_case(&other.host) && self.port == other.port && self.user == other.user
+    }
+
     /// Copy that is safe to write to disk: drops the password unless the user asked to keep it.
     pub fn for_storage(&self) -> Self {
         let mut cfg = self.clone();

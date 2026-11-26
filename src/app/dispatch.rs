@@ -2,6 +2,7 @@
 //! contents; the work lives in the `*_actions` modules.
 
 use super::{Act, Dbz, Dialog};
+use crate::transfer::ConnSource;
 
 impl Dbz {
     pub fn do_act(&mut self, act: Act) {
@@ -19,6 +20,8 @@ impl Dbz {
             Act::TestConn(cfg) => self.test_conn(cfg),
             Act::SaveConn { editing, cfg } => self.save_conn(editing, cfg),
             Act::CloseConnDialog => self.close_conn_dialog(),
+            Act::ShowImportConns => self.dialogs.dialog = Some(Dialog::ImportConns { source: ConnSource::Navicat, path: String::new() }),
+            Act::ImportConns(source, path) => self.import_conns(source, &path),
             Act::LoadUsers(cid) => self.load_users(cid),
             Act::ToggleDb(cid, db) => self.toggle_db(cid, db),
             Act::OpenDb(cid, db) => self.open_db(cid, db),

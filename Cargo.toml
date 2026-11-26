@@ -1,6 +1,6 @@
 [package]
 name = "dbz"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Desktop database manager for MySQL, MariaDB, PostgreSQL and SQL Server"
 authors = ["rizalda96"]
@@ -46,10 +46,18 @@ url = "2"
 sha2 = "0.10"
 base64 = "0.22"
 getrandom = "0.3"
+# Importing connections from other tools: Navicat keeps passwords with Blowfish (key =
+# SHA-1 of a fixed string) or AES, DBeaver with AES.
+aes = "0.8"
+aes-gcm = "0.10"
+blowfish = "0.9"
+sha1 = "0.10"
 
-# Windows Authentication to SQL Server through SSPI.
+# Windows Authentication to SQL Server through SSPI, and reading Navicat's newer
+# passwords (its key lives in Windows Credential Manager).
 [target.'cfg(windows)'.dependencies]
 tiberius = { version = "0.13", default-features = false, features = ["winauth"] }
+windows-sys = { version = "0.59", features = ["Win32_Security_Credentials", "Win32_Foundation"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 winit = "0.30"
