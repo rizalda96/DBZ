@@ -1,5 +1,5 @@
 use super::{AiChat, ChatItem, Step, MAX_ROUNDS};
-use crate::domain::{AiTool, DbRead, Role};
+use crate::domain::{AiImage, AiTool, DbRead, Role};
 
 #[test]
 fn answer_ends_turn() {
@@ -67,4 +67,27 @@ fn ai_error_ends_turn_with_message() {
     assert_eq!(c.accept(t, Err(crate::ai::AiError::Timeout)), Step::Done);
     assert!(c.busy.is_none());
     assert!(matches!(c.items.last(), Some(ChatItem::Error(_))));
+}
+
+fn png(name: &str) -> AiImage {
+    AiImage { name: name.into(), media_type: "image/png".into(), data: vec![1, 2, 3] }
+}
+
+#[test]
+fn attachments_go_with_the_next_message_only() {
+    let mut c = AiChat::default();
+    c.attach(png("a.png")).expect("room");
+    c.begin_turn("lihat ini".into());
+    assert_eq!(c.history()[0].images.len(), 1);
+    assert!(c.attachments.is_empty());
+    assert!(matches!(&c.items[0], ChatItem::User { images, .. } if images == &["a.png".to_string()]));
+}
+
+#[test]
+fn attachments_are_limited() {
+    let mut c = AiChat::default();
+    for i in 0..super::MAX_IMAGES {
+        c.attach(png(&format!("{i}.png"))).expect("room");
+    }
+    assert!(c.attach(png("one-too-many.png")).is_err());
 }

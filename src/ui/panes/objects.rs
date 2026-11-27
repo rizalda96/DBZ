@@ -89,7 +89,10 @@ fn users(ui: &mut Ui, c: &ConnState, acts: &mut Vec<Act>) {
         Some(Err(e)) => {
             ui.colored_label(pal().err, format!("  {}", e));
         }
-        Some(Ok(rs)) => result_grid(ui, ("users", c.cfg.id), &rs.columns, &rs.rows, &mut None),
+        Some(Ok(rs)) => {
+            // The Users list stays in the server's order.
+            result_grid(ui, ("users", c.cfg.id), rs, &mut None, None);
+        }
     }
 }
 
@@ -175,8 +178,7 @@ impl ObjectList<'_> {
         let mut hit = None;
         ObjectTable { headers, rows: items.len() }.show(ui, ("olist", mode as u8), row, |i, ev| match ev {
             RowEv::Click => hit = Some((items[i].0.clone(), items[i].1, false)),
-            RowEv::Double if mode != ObjMode::Functions => hit = Some((items[i].0.clone(), items[i].1, true)),
-            RowEv::Double => {}
+            RowEv::Double => hit = Some((items[i].0.clone(), items[i].1, true)),
             RowEv::Menu(ui) => object_menu(ui, mode, &ObjRef::new(self.cid, &self.d.name, &items[i].0), acts),
         });
         hit

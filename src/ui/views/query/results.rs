@@ -17,7 +17,10 @@ pub(super) fn panel(ui: &mut Ui, t: &mut QueryTab) {
             if t.view == 0 {
                 message(ui, t);
             } else if let Some(rs) = t.results.get(t.view - 1) {
-                result_grid(ui, ("qgrid", t.id, t.view), &rs.columns, &rs.rows, &mut t.sel_cell);
+                let sorted = t.sorted();
+                if let Some(col) = result_grid(ui, ("qgrid", t.id, t.view), rs, &mut t.sel_cell, sorted) {
+                    t.sort_by(col);
+                }
             }
         });
 }

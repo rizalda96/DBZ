@@ -2,7 +2,7 @@
 
 use eframe::egui::{self, vec2, FontId, RichText, Sense, Ui};
 
-use crate::app::{Act, ConnState, ConnStatus, DbState, ObjMode, ObjRef, Workspace};
+use crate::app::{Act, ConnState, ConnStatus, DbState, ObjMode, ObjRef, PaneState, Workspace};
 use crate::domain::DbKind;
 use crate::shared::fmt_bytes;
 use crate::ui::icons::{self, Icon};
@@ -10,28 +10,35 @@ use crate::ui::theme::{kind_color, pal};
 
 const PG_OWNER_PREFIX: &str = "owner: ";
 
-pub fn info(ui: &mut Ui, ws: &Workspace, info_ddl: &mut bool, acts: &mut Vec<Act>) {
+/// The pane's own × hides it (`panes.show_info`); View › Information Pane brings it back.
+pub fn info(ui: &mut Ui, ws: &Workspace, panes: &mut PaneState, acts: &mut Vec<Act>) {
     let table_sel = ws.sel.obj.is_some() && matches!(ws.mode, ObjMode::Tables | ObjMode::Views | ObjMode::MatViews);
-    tabs(ui, info_ddl, table_sel);
+    tabs(ui, panes, table_sel);
+    let show_ddl = panes.info_ddl;
     let Some(c) = ws.sel.cid.and_then(|cid| ws.conn(cid)) else {
         ui.add_space(30.0);
         ui.vertical_centered(|ui| ui.label(RichText::new("No object selected").color(pal().muted)));
         return;
     };
     egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
-        egui::Frame::new().inner_margin(egui::Margin::symmetric(12, 10)).show(ui, |ui| body(ui, ws, c, *info_ddl, acts));
+        egui::Frame::new().inner_margin(egui::Margin::symmetric(12, 10)).show(ui, |ui| body(ui, ws, c, show_ddl, acts));
     });
 }
 
-fn tabs(ui: &mut Ui, info_ddl: &mut bool, table_sel: bool) {
+fn tabs(ui: &mut Ui, panes: &mut PaneState, table_sel: bool) {
     egui::Frame::new().fill(pal().header_bg).inner_margin(egui::Margin::symmetric(8, 4)).show(ui, |ui| {
         ui.horizontal(|ui| {
-            if ui.selectable_label(!*info_ddl || !table_sel, "General").clicked() {
-                *info_ddl = false;
+            if ui.selectable_label(!panes.info_ddl || !table_sel, "General").clicked() {
+                panes.info_ddl = false;
             }
-            if ui.add_enabled(table_sel, egui::Button::selectable(*info_ddl && table_sel, "DDL")).clicked() {
-                *info_ddl = true;
+            if ui.add_enabled(table_sel, egui::Button::selectable(panes.info_ddl && table_sel, "DDL")).clicked() {
+                panes.info_ddl = true;
             }
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.small_button("×").on_hover_text("Hide (Ctrl+Shift+I)").clicked() {
+                    panes.show_info = false;
+                }
+            });
         });
     });
 }

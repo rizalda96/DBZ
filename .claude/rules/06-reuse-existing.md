@@ -17,7 +17,7 @@ Sebelum menulis fungsi, widget, atau helper baru:
 | `icon_btn(ui, icon, tip, enabled)` | tombol kecil ikon saja (mis. ↑ ↓ + − di editor index) |
 | `ribbon_btn(ui, icon, label, selected, enabled)`, `ribbon_sep(ui)` | tombol besar ribbon |
 | `menu_item(ui, acts, label, act)`, `context_menu(resp, add)`, `menu_style`, `menu_config()` | menu dropdown/klik kanan |
-| `result_grid(ui, id, columns, rows, sel)` | grid hasil read-only (query, users) |
+| `result_grid(ui, id, rs, sel, sorted) -> Option<usize>` | grid hasil read-only (query, users); mengembalikan kolom yang header-nya diklik, pemanggil yang mengurutkan (`sort_rows` di `domain/result.rs`) |
 | `ObjectTable { headers, rows }.show(ui, id, row, on)` + `ObjRow`, `RowEv` | daftar objek di tab Objects |
 | `tree_row(ui, TreeItem { .. })` | baris pohon koneksi |
 | `header_cell(ui)`, `cell_lines(ui, rect)`, `cell_text(ui, cell, color)`, `col_width(..)`, `arrow(p, c, r, Arrow, color)` | bagian grid |
@@ -55,6 +55,7 @@ Sebelum menulis fungsi, widget, atau helper baru:
 | `FieldDef::type_text`, `split_type`, `loaded` | `domain/schema.rs` | tipe kolom ↔ teks |
 | `TableParts::loaded`, trait `Part` | `domain/table_parts.rs` | index/FK/unique/check/trigger/opsi tabel + nama asal untuk diff |
 | `Driver::table_parts` | `db/driver.rs` | baca index/FK/unique/check/trigger/opsi dari server |
+| `Driver::routine_ddl`, `Dialect::routine_call`, `RoutineInfo::{is_procedure, bare_name}` | `db/driver.rs`, `sql/dialect.rs`, `domain/schema.rs` | definisi function/procedure (Design Function) dan statement pemanggilnya (Execute Function) |
 | `Driver::index_choices`, `IndexChoices::{collations_in, opclasses_for}` | `db/driver.rs`, `domain/index_choices.rs` | daftar schema, collation, operator class untuk dropdown index |
 | `ConnConfig::blank`, `timeout`, `for_storage` | `domain/connection.rs` | konfigurasi koneksi |
 | `SqlAuth::{ALL, label, fields}`, `Need` | `domain/sql_auth.rs` | metode autentikasi SQL Server + field login yang dipakai tiap metode |

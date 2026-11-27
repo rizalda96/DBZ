@@ -258,6 +258,12 @@ impl Driver for MssqlDriver {
         Ok(DIALECT.create_table(table, &cols, &comment).join(";\n") + ";")
     }
 
+    fn routine_ddl(&mut self, db: &str, routine: &RoutineInfo) -> Result<String, DbError> {
+        let sets = self.query(db, &format!("SELECT OBJECT_DEFINITION(OBJECT_ID({}))", Self::object(&routine.name)))?;
+        let def = first_cell(&sets).map(|d| d.trim().to_string()).filter(|d| !d.is_empty());
+        def.ok_or_else(|| DbError::Query(format!("No definition found for {} (it may be encrypted)", routine.name)))
+    }
+
     fn table_parts(&mut self, db: &str, table: &str) -> Result<TableParts, DbError> {
         mssql_parts::table_parts(self, db, &Self::object(table))
     }

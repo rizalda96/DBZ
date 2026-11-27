@@ -39,6 +39,9 @@ impl Driver for FakeDriver {
     fn ddl(&mut self, _db: &str, _table: &str, _is_view: bool) -> Result<String, DbError> {
         Ok(String::new())
     }
+    fn routine_ddl(&mut self, _db: &str, _routine: &RoutineInfo) -> Result<String, DbError> {
+        Ok(String::new())
+    }
     fn table_parts(&mut self, _db: &str, _table: &str) -> Result<TableParts, DbError> {
         Ok(TableParts::default())
     }

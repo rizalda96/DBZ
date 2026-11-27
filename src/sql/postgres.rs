@@ -4,7 +4,7 @@ use super::dialect::{create_table_head, default_expr, CapRows, Dialect, SqlTempl
 use super::diff::{diff, ColumnDiff};
 use super::parts::{ConstraintKind, DesignerCaps};
 use super::postgres_parts as parts;
-use crate::domain::{FieldDef, IndexDef, TableOptions, TriggerDef};
+use crate::domain::{FieldDef, IndexDef, RoutineInfo, TableOptions, TriggerDef};
 
 pub struct PgDialect;
 
@@ -120,6 +120,18 @@ impl Dialect for PgDialect {
 
     fn statement_timeout(&self, secs: u32) -> Option<String> {
         Some(format!("SET statement_timeout = '{}s'", secs))
+    }
+
+    /// `SELECT * FROM` works for functions returning one value, rows or a table.
+    fn routine_call(&self, r: &RoutineInfo) -> String {
+        let name = self.quote_ident(&r.name);
+        if r.is_procedure() {
+            format!("CALL {}();
+", name)
+        } else {
+            format!("SELECT * FROM {}();
+", name)
+        }
     }
 
     /// `public` stays on the path after the chosen schema, so functions from

@@ -4,6 +4,7 @@
 
 mod backend;
 mod claude_cli;
+mod images;
 mod openai;
 mod prompt;
 mod protocol;

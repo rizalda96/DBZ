@@ -1,6 +1,6 @@
 //! Right-click menus for databases and objects, and what double-click opens.
 
-use eframe::egui::Ui;
+use eframe::egui::{self, Ui};
 
 use crate::app::{Act, ObjMode, ObjRef, Sel};
 use crate::domain::RelationKind;
@@ -13,6 +13,7 @@ pub(super) fn open_act(mode: ObjMode, obj: ObjRef, is_view: bool) -> Act {
         ObjMode::Tables | ObjMode::Views | ObjMode::MatViews => Act::OpenTable(obj, is_view),
         ObjMode::Queries => Act::OpenSavedQuery(obj),
         ObjMode::Backups => Act::RestoreBackup(obj),
+        ObjMode::Functions => Act::DesignRoutine(obj),
         _ => Act::Select(Sel { obj: Some(obj.name), ..Sel::db(obj.cid, obj.db) }),
     }
 }
@@ -49,7 +50,15 @@ pub(super) fn db_menu(ui: &mut Ui, target: DbTarget, acts: &mut Vec<Act>) {
     menu_item(ui, acts, "Import Wizard…", Act::Import(cid, db.clone(), None));
     menu_item(ui, acts, "New Backup", Act::NewBackup(cid, db.clone()));
     ui.separator();
-    menu_item(ui, acts, "Refresh", Act::RefreshDb(cid, db));
+    refresh_item(ui, acts, Act::RefreshDb(cid, db));
+}
+
+/// "Refresh" with its F5 shortcut, at the end of every tree and object menu.
+pub(super) fn refresh_item(ui: &mut Ui, acts: &mut Vec<Act>, act: Act) {
+    if ui.add(egui::Button::new("Refresh").shortcut_text("F5")).clicked() {
+        acts.push(act);
+        ui.close();
+    }
 }
 
 /// Dump and restore in the server's own format (database menu and Tools menu).
@@ -74,7 +83,7 @@ pub(super) fn object_menu(ui: &mut Ui, mode: ObjMode, obj: &ObjRef, acts: &mut V
             menu_item(ui, acts, "Delete Materialized View", Act::DropTables(obj.cid, obj.db.clone(), vec![obj.name.clone()], RelationKind::MatView));
             menu_item(ui, acts, "Export Wizard…", Act::Export(obj.clone()));
         }
-        ObjMode::Functions => menu_item(ui, acts, "Delete", Act::DropRoutine(obj.clone(), "FUNCTION".into())),
+        ObjMode::Functions => routine_menu(ui, obj, acts),
         ObjMode::Queries => {
             menu_item(ui, acts, "Open Query", Act::OpenSavedQuery(obj.clone()));
             menu_item(ui, acts, "Delete Query", Act::DeleteQuery(obj.clone()));
@@ -89,6 +98,19 @@ pub(super) fn object_menu(ui: &mut Ui, mode: ObjMode, obj: &ObjRef, acts: &mut V
         ui.ctx().copy_text(obj.name.clone());
         ui.close();
     }
+    if mode != ObjMode::Users {
+        ui.separator();
+        refresh_item(ui, acts, Act::RefreshDb(obj.cid, obj.db.clone()));
+    }
+}
+
+/// Functions and procedures. Delete names FUNCTION here; the app uses the real kind.
+fn routine_menu(ui: &mut Ui, obj: &ObjRef, acts: &mut Vec<Act>) {
+    menu_item(ui, acts, "Design Function", Act::DesignRoutine(obj.clone()));
+    menu_item(ui, acts, "New Function", Act::NewRoutine(obj.cid, obj.db.clone()));
+    menu_item(ui, acts, "Delete Function", Act::DropRoutine(obj.clone(), "FUNCTION".into()));
+    menu_item(ui, acts, "Execute Function", Act::ExecRoutine(obj.clone()));
+    ui.separator();
 }
 
 fn table_menu(ui: &mut Ui, obj: &ObjRef, acts: &mut Vec<Act>) {
@@ -100,9 +122,8 @@ fn table_menu(ui: &mut Ui, obj: &ObjRef, acts: &mut Vec<Act>) {
     menu_item(ui, acts, "Truncate Table", Act::Truncate(obj.clone()));
     menu_item(ui, acts, "Rename", Act::Rename(obj.clone()));
     ui.separator();
-    menu_item(ui, acts, "Import Wizard…", Act::Import(cid, db.clone(), Some(name.clone())));
+    menu_item(ui, acts, "Import Wizard…", Act::Import(cid, db, Some(name)));
     menu_item(ui, acts, "Export Wizard…", Act::Export(obj.clone()));
     ui.separator();
     menu_item(ui, acts, "New Query on This Table", Act::QueryTable(obj.clone()));
-    menu_item(ui, acts, "Refresh", Act::RefreshDb(cid, db));
 }

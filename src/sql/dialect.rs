@@ -5,7 +5,7 @@ use super::mysql::MySqlDialect;
 use super::parts::{ConstraintKind, DesignerCaps};
 use super::postgres::PgDialect;
 use super::split::split_statements;
-use crate::domain::{Cell, DbKind, FieldDef, IndexDef, TableOptions, TriggerDef};
+use crate::domain::{Cell, DbKind, FieldDef, IndexDef, RoutineInfo, TableOptions, TriggerDef};
 
 /// Starter scripts offered by the "New View / Function / User" buttons.
 pub struct SqlTemplates {
@@ -143,6 +143,19 @@ pub trait Dialect: Sync {
         None
     }
 
+    /// "Execute Function": a statement that runs `r`, for the user to fill in the
+    /// arguments and run.
+    fn routine_call(&self, r: &RoutineInfo) -> String {
+        let name = self.quote_ident(&r.name);
+        if r.is_procedure() {
+            format!("CALL {}();
+", name)
+        } else {
+            format!("SELECT {}();
+", name)
+        }
+    }
+
     fn explain(&self) -> Explain {
         Explain::Prefix("EXPLAIN ")
     }
@@ -207,4 +220,40 @@ pub(super) fn create_table_head(d: &dyn Dialect, table: &str, fields: &[FieldDef
         parts.push(format!("  PRIMARY KEY ({})", keys.join(", ")));
     }
     format!("CREATE TABLE {} (\n{}\n)", d.quote_ident(table), parts.join(",\n"))
+}
+
+#[cfg(test)]
+mod routine_call_tests {
+    use super::Dialect;
+    use crate::domain::RoutineInfo;
+    use crate::sql::{MssqlDialect, MySqlDialect, PgDialect};
+
+    fn routine(name: &str, schema: &str, kind: &str, returns: &str) -> RoutineInfo {
+        RoutineInfo { name: name.into(), schema: schema.into(), kind: kind.into(), returns: returns.into() }
+    }
+
+    #[test]
+    fn calls_functions_and_procedures_per_server() {
+        assert_eq!(MySqlDialect.routine_call(&routine("add_numbers", "", "FUNCTION", "int")), "SELECT `add_numbers`();
+");
+        assert_eq!(MySqlDialect.routine_call(&routine("load", "", "PROCEDURE", "")), "CALL `load`();
+");
+        assert_eq!(PgDialect.routine_call(&routine("uuid_generate_v4", "public", "FUNCTION", "uuid")), "SELECT * FROM \"uuid_generate_v4\"();
+");
+        assert_eq!(PgDialect.routine_call(&routine("etl.load", "etl", "PROCEDURE", "")), "CALL \"etl\".\"load\"();
+");
+        assert_eq!(MssqlDialect.routine_call(&routine("add_numbers", "dbo", "FUNCTION", "int")), "SELECT [dbo].[add_numbers]();
+");
+        assert_eq!(MssqlDialect.routine_call(&routine("rows_of", "dbo", "FUNCTION", "TABLE")), "SELECT * FROM [dbo].[rows_of]();
+");
+        assert_eq!(MssqlDialect.routine_call(&routine("sales.load", "sales", "PROCEDURE", "")), "EXEC [sales].[load];
+");
+    }
+
+    #[test]
+    fn bare_name_drops_only_its_own_schema() {
+        assert_eq!(routine("etl.load", "etl", "FUNCTION", "").bare_name(), "load");
+        assert_eq!(routine("load", "public", "FUNCTION", "").bare_name(), "load");
+        assert_eq!(routine("etlx.load", "etl", "FUNCTION", "").bare_name(), "etlx.load");
+    }
 }

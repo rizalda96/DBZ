@@ -22,6 +22,8 @@ const TABLES_SQL: &str = "SELECT c.relname, n.nspname, c.relkind, c.reltuples::b
 const ROUTINES_SQL: &str = "SELECT p.proname, CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END, pg_get_function_result(p.oid), n.nspname \
     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace \
     WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND p.prokind IN ('f','p') ORDER BY n.nspname <> 'public', n.nspname, 1";
+/// Every overload of one function or procedure name in one schema.
+const ROUTINE_DDL_SQL: &str = "SELECT pg_get_functiondef(p.oid) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace \n    WHERE n.nspname = {schema} AND p.proname = {name} AND p.prokind IN ('f','p') ORDER BY p.oid";
 const SCHEMAS_SQL: &str = "SELECT nspname FROM pg_namespace WHERE nspname <> 'information_schema' AND nspname !~ '^pg_' ORDER BY nspname <> 'public', nspname";
 const COLUMNS_SQL: &str = "SELECT a.attname, format_type(a.atttypid, a.atttypmod), a.attnotnull, pg_get_expr(d.adbin, d.adrelid), col_description(a.attrelid, a.attnum), \
      EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = a.attrelid AND i.indisprimary AND a.attnum = ANY(i.indkey)) \
@@ -107,6 +109,18 @@ impl Driver for PgDriver {
     fn columns(&mut self, db: &str, table: &str) -> Result<Vec<FieldDef>, DbError> {
         let sql = COLUMNS_SQL.replace("{reg}", &Self::regclass(table));
         Ok(self.rows(db, &sql)?.iter().map(field_def).collect())
+    }
+
+    fn routine_ddl(&mut self, db: &str, routine: &RoutineInfo) -> Result<String, DbError> {
+        let bare = routine.bare_name();
+        let sql = ROUTINE_DDL_SQL.replace("{schema}", &DIALECT.str_literal(&routine.schema)).replace("{name}", &DIALECT.str_literal(bare));
+        let defs: Vec<String> = self.rows(db, &sql)?.iter().map(|r| format!("{};", text(&r[0]).trim_end())).collect();
+        if defs.is_empty() {
+            return Err(DbError::Query(format!("No definition found for {}", routine.name)));
+        }
+        Ok(defs.join("
+
+"))
     }
 
     fn ddl(&mut self, db: &str, table: &str, is_view: bool) -> Result<String, DbError> {

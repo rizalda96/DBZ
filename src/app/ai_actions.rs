@@ -6,10 +6,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Arc;
 
+use eframe::egui::ColorImage;
+
+use super::ai_images::{image_from_file, image_from_pixels};
 use super::ai_state::{AiTarget, Step};
 use super::{Dbz, Dialog, ObjRef};
 use crate::ai::{clip, system_prompt, PromptContext};
-use crate::domain::{AiConfig, AiTool, ChatMsg, DbRead, Role};
+use crate::domain::{AiConfig, AiImage, AiTool, ChatMsg, DbRead, Role};
 use crate::shared::data_dir;
 use crate::worker::{self, ask_ai, AiAsk, AiReply, Reply, ReplyTo, Req, Resp};
 
@@ -63,7 +66,7 @@ fn ai_dir() -> std::path::PathBuf {
 impl Dbz {
     pub(super) fn ai_send(&mut self) {
         let text = self.ai.input.trim().to_string();
-        if text.is_empty() || self.ai.busy.is_some() {
+        if (text.is_empty() && self.ai.attachments.is_empty()) || self.ai.busy.is_some() {
             return;
         }
         if self.ai.target.is_none() {
@@ -243,6 +246,30 @@ impl Dbz {
         }
     }
 
+    /// Adds an image to the next message, or says in the status bar why not.
+    pub(super) fn ai_attach(&mut self, image: Result<AiImage, String>) {
+        match image.and_then(|img| self.ai.attach(img)) {
+            Ok(()) => self.status = format!("{} image(s) will go with your next message", self.ai.attachments.len()),
+            Err(e) => self.status = e,
+        }
+    }
+
+    pub(super) fn ai_pick_images(&mut self) {
+        let picked = rfd::FileDialog::new().set_title("Attach Images").add_filter("Images", &["png", "jpg", "jpeg", "gif", "webp"]).pick_files();
+        for path in picked.unwrap_or_default() {
+            self.ai_attach(image_from_file(&path));
+        }
+    }
+
+    /// A picture pasted into the chat box (Ctrl+V), as PNG.
+    pub(super) fn ai_attach_pixels(&mut self, img: &ColorImage) {
+        let rgba: Vec<u8> = img.pixels.iter().flat_map(|c| c.to_srgba_unmultiplied()).collect();
+        let size = (img.size[0] as u32, img.size[1] as u32);
+        let name = format!("pasted-{}.png", self.ai.attachments.len() + 1);
+        let image = image_from_pixels(size, rgba, name);
+        self.ai_attach(image);
+    }
+
     pub(super) fn ai_stop(&mut self) {
         self.ai_cancel();
         if self.ai.busy.is_some() {
@@ -298,7 +325,7 @@ impl Dbz {
             *test = None;
             *testing = true;
         }
-        let msgs = vec![ChatMsg { role: Role::User, text: "ping".into() }];
+        let msgs = vec![ChatMsg::new(Role::User, "ping")];
         let ask = AiAsk { turn: TEST_TURN, cfg, system: "Reply with the single word OK.".into(), msgs, work_dir: ai_dir() };
         // Nothing stops a test; a reply after the dialog closed is dropped in `ai_test_done`.
         ask_ai(ask, self.ai_rt.ai_tx.clone(), self.ctx().clone());

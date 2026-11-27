@@ -2,7 +2,7 @@
 
 use eframe::egui::{self, RichText, Ui};
 
-use super::object_menus::{db_menu, object_menu, open_act, DbTarget};
+use super::object_menus::{db_menu, object_menu, open_act, refresh_item, DbTarget};
 use super::search::{self, SearchBox};
 use crate::app::{Act, ConnState, ConnStatus, DbState, FolderRef, ObjMode, ObjRef, Sel, Workspace};
 use crate::domain::DbKind;
@@ -95,7 +95,7 @@ fn conn_menu(ui: &mut Ui, cid: u64, open: bool, acts: &mut Vec<Act>) {
     }
     if open {
         ui.separator();
-        menu_item(ui, acts, "Refresh", Act::RefreshConn(cid));
+        refresh_item(ui, acts, Act::RefreshConn(cid));
     }
 }
 
@@ -192,6 +192,7 @@ fn schema_branch(ui: &mut Ui, cx: &DbCtx, schema: &str, acts: &mut Vec<Act>) {
     } else if resp.clicked() {
         acts.push(Act::SelectFolder(cx.folder_ref(Some(schema), ObjMode::Tables)));
     }
+    context_menu(&resp, |ui| refresh_item(ui, acts, Act::RefreshDb(cx.cid, cx.d.name.clone())));
     if !open {
         return;
     }
@@ -226,6 +227,7 @@ fn folder_branch(ui: &mut Ui, cx: &DbCtx, f: Folder, acts: &mut Vec<Act>) {
     } else if resp.clicked() {
         acts.push(Act::SelectFolder(cx.folder_ref(f.schema, f.mode)));
     }
+    context_menu(&resp, |ui| refresh_item(ui, acts, Act::RefreshDb(cx.cid, cx.d.name.clone())));
     if !open {
         return;
     }
@@ -250,8 +252,7 @@ fn leaf(ui: &mut Ui, cx: &DbCtx, f: &Folder, (name, is_view, icon): Leaf, acts: 
         acts.push(Act::SetMode(mode));
         acts.push(Act::Select(Sel::in_schema(obj.cid, &obj.db, f.schema.map(str::to_string), Some(obj.name.clone()))));
     }
-    // Functions have nothing to open; their fallback would drop the schema selection.
-    if resp.double_clicked() && mode != ObjMode::Functions {
+    if resp.double_clicked() {
         acts.push(open_act(mode, obj.clone(), is_view));
     }
     context_menu(&resp, |ui| object_menu(ui, mode, &obj, acts));

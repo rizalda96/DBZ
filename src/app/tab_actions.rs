@@ -61,6 +61,9 @@ impl Dbz {
     }
 
     pub(super) fn ask_drop_routine(&mut self, obj: ObjRef, kind: String) {
+        // Menus without the object list say FUNCTION; a procedure needs DROP PROCEDURE.
+        let listed = self.ws.conn(obj.cid).and_then(|c| c.db(&obj.db)).and_then(|d| d.routines.iter().find(|r| r.name == obj.name));
+        let kind = listed.map(|r| r.kind.clone()).unwrap_or(kind);
         let k = kind.to_lowercase();
         let msg = format!("Are you sure you want to delete the {} \"{}\"?", k, obj.name);
         self.confirm(format!("Delete {}", k), msg, Confirm::DropRoutine(obj, kind));

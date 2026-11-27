@@ -53,6 +53,7 @@ impl Dbz {
                 self.ws.ddl_cache.insert((cid, db, table), result);
             }
             Resp::ViewSource { db, view, result } => self.view_source(cid, db, view, result),
+            Resp::RoutineSource { db, name, result } => self.routine_source(cid, db, name, result),
             Resp::Query { tab, results, error, elapsed } => self.query_done(cid, tab, (results, error), elapsed),
             Resp::TableData { tab, result, sql, elapsed } => self.table_data(tab, result, sql, elapsed),
             Resp::Exec { tab, db, result, purpose } => self.exec_done(cid, (tab, db), result, purpose),
@@ -239,6 +240,7 @@ impl Dbz {
         q.elapsed = Some(elapsed);
         q.view = if error.is_some() { 0 } else { results.iter().position(|r| r.has_rows).map(|i| i + 1).unwrap_or(0) };
         q.sel_cell = None;
+        q.sort = None;
         let changed_schema = results.iter().any(|r| {
             let u = r.statement.trim_start().to_uppercase();
             SCHEMA_CHANGING.iter().any(|k| u.starts_with(k))

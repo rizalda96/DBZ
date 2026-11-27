@@ -8,7 +8,7 @@ use crate::domain::DbKind;
 use crate::ui::theme::ThemePref;
 use crate::ui::widgets::{menu_config, menu_item, menu_style};
 
-const SHORTCUTS_HELP: &str = "Ctrl+Q — New query\nCtrl+R or F9 — Run query (or just the selected text)\nCtrl+S — Save (query, data changes, table design)\nCtrl+W — Close tab\nF5 — Refresh\nEnter or F2 — Edit the selected cell\nArrow keys — Move between cells\nCtrl+C — Copy the selected cell";
+const SHORTCUTS_HELP: &str = "Ctrl+Q — New query\nCtrl+R or F9 — Run query (or just the selected text)\nCtrl+S — Save (query, data changes, table design)\nCtrl+W — Close tab\nF5 — Refresh\nCtrl+Shift+A — AI Assistant\nCtrl+Shift+I — Information pane\nEnter or F2 — Edit the selected cell\nArrow keys — Move between cells\nCtrl+C — Copy the selected cell";
 const VIEW_MODES: [ObjMode; 6] = [ObjMode::Tables, ObjMode::Views, ObjMode::Functions, ObjMode::Users, ObjMode::Queries, ObjMode::Backups];
 
 pub fn menu_bar(ui: &mut Ui, ws: &Workspace, panes: &mut PaneState, theme: ThemePref, acts: &mut Vec<Act>) {
@@ -56,7 +56,7 @@ fn file_menu(ui: &mut Ui, ws: &Workspace, acts: &mut Vec<Act>) {
 }
 
 fn view_menu(ui: &mut Ui, ws: &Workspace, panes: &mut PaneState, theme: ThemePref, acts: &mut Vec<Act>) {
-    if ui.checkbox(&mut panes.show_info, "Information Pane").clicked() {
+    if ui.checkbox(&mut panes.show_info, "Information Pane").on_hover_text("Ctrl+Shift+I").clicked() {
         ui.close();
     }
     if ui.add(egui::Button::new("AI Assistant").shortcut_text("Ctrl+Shift+A")).clicked() {

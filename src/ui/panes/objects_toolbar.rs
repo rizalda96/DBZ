@@ -33,12 +33,25 @@ pub(super) fn show(ui: &mut Ui, ws: &Workspace, filter: &mut String, acts: &mut 
                 ObjMode::Views | ObjMode::MatViews | ObjMode::Functions | ObjMode::Users => code_buttons(ui, ws, &t, &mut b),
                 ObjMode::Queries | ObjMode::Backups => file_buttons(ui, ws, &t, &mut b),
             }
+            // Users has its own Refresh, which also reloads the user list.
+            if ws.mode != ObjMode::Users {
+                refresh_button(ui, ws, acts);
+            }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let hint = search::hint(ui.ctx(), "Search");
                 ui.add(egui::TextEdit::singleline(filter).id(SearchBox::Objects.id()).hint_text(hint).desired_width(170.0));
             });
         });
     });
+}
+
+/// Reloads what is selected: the database's objects and files, or the connection's databases.
+fn refresh_button(ui: &mut Ui, ws: &Workspace, acts: &mut Vec<Act>) {
+    tool_sep(ui);
+    let refresh = ws.refresh_acts();
+    if tool_btn(ui, Some(Icon::Refresh), "Refresh", !refresh.is_empty()).on_hover_text("Refresh (F5)").clicked() {
+        acts.extend(refresh);
+    }
 }
 
 type Button<'a> = dyn FnMut(&mut Ui, Icon, &str, bool, Act) + 'a;
@@ -72,8 +85,10 @@ fn code_buttons(ui: &mut Ui, ws: &Workspace, t: &Target, b: &mut Button) {
             b(ui, Icon::Delete, "Delete Materialized View", t.has_obj, Act::DropTables(o.cid, o.db.clone(), vec![o.name.clone()], RelationKind::MatView));
         }
         ObjMode::Functions => {
+            b(ui, Icon::Design, "Design Function", t.has_obj, Act::DesignRoutine(o.clone()));
             b(ui, Icon::Add, "New Function", t.has_db, Act::NewQuery(o.cid, o.db.clone(), tpl.new_function.into()));
             b(ui, Icon::Delete, "Delete Function", t.has_obj, Act::DropRoutine(o.clone(), routine_kind(ws, o)));
+            b(ui, Icon::Run, "Execute Function", t.has_obj, Act::ExecRoutine(o.clone()));
         }
         _ => {
             b(ui, Icon::Refresh, "Refresh", has_conn, Act::LoadUsers(o.cid));

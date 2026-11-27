@@ -6,6 +6,7 @@ use std::sync::Arc;
 use serde_json::{json, Value};
 
 use super::backend::{snippet, AiBackend, AiError, AI_TIMEOUT};
+use super::images::{base64, image_note, sends_images};
 use crate::domain::{ChatMsg, Role};
 
 pub struct OpenAiCompat {
@@ -48,12 +49,27 @@ fn status_error(code: u16, r: ureq::Response) -> AiError {
 /// this protocol doesn't use the API's own tool calls.
 pub(super) fn request_body(system: &str, msgs: &[ChatMsg], model: &str) -> Value {
     let mut messages = vec![json!({"role": "system", "content": system})];
-    messages.extend(msgs.iter().map(|m| match m.role {
-        Role::User => json!({"role": "user", "content": m.text}),
+    messages.extend(msgs.iter().enumerate().map(|(i, m)| match m.role {
+        Role::User => json!({"role": "user", "content": user_content(msgs, i)}),
         Role::Assistant => json!({"role": "assistant", "content": m.text}),
         Role::ToolResult => json!({"role": "user", "content": format!("[tool result]\n{}", m.text)}),
     }));
     json!({"model": model, "messages": messages})
+}
+
+/// Plain text, or text plus `image_url` parts when this message's images are sent.
+fn user_content(msgs: &[ChatMsg], i: usize) -> Value {
+    let m = &msgs[i];
+    let text = match image_note(msgs, i) {
+        Some(note) => format!("{}\n{}", m.text, note),
+        None => m.text.clone(),
+    };
+    if !sends_images(msgs, i) {
+        return Value::String(text);
+    }
+    let mut parts = vec![json!({"type": "text", "text": text})];
+    parts.extend(m.images.iter().map(|img| json!({"type": "image_url", "image_url": {"url": format!("data:{};base64,{}", img.media_type, base64(&img.data))}})));
+    Value::Array(parts)
 }
 
 /// The first choice's text, or the error the server sent.

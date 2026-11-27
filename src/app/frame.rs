@@ -90,7 +90,7 @@ impl Dbz {
                 .default_size(270.0)
                 .min_size(180.0)
                 .frame(bordered(pal().surface))
-                .show(ui, |ui| panes::info(ui, ws, &mut prefs.info_ddl, acts));
+                .show(ui, |ui| panes::info(ui, ws, prefs, acts));
         }
         egui::CentralPanel::default().frame(egui::Frame::new().fill(pal().surface)).show(ui, |ui| self.work_area(ui, acts));
     }
@@ -121,6 +121,9 @@ impl Dbz {
         });
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND | egui::Modifiers::SHIFT, egui::Key::A)) {
             acts.push(Act::AiToggle);
+        }
+        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND | egui::Modifiers::SHIFT, egui::Key::I)) {
+            self.panes.show_info = !self.panes.show_info;
         }
         if let (true, Some(cid)) = (q, self.ws.query_target()) {
             acts.push(Act::NewQuery(cid, self.ws.sel.db.clone().unwrap_or_default(), String::new()));

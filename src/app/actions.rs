@@ -74,6 +74,12 @@ pub enum Act {
     Truncate(ObjRef),
     Rename(ObjRef),
     DropRoutine(ObjRef, String),
+    /// Opens a function's or procedure's definition in a query tab.
+    DesignRoutine(ObjRef),
+    /// Opens a query tab with a statement that runs the function or procedure.
+    ExecRoutine(ObjRef),
+    /// A query tab with the server's "new function" template.
+    NewRoutine(u64, String),
     // queries
     NewQuery(u64, String, String),
     /// A new query that starts with a SELECT of the table, in the server's syntax.
@@ -121,6 +127,13 @@ pub enum Act {
     AiOpenSql(String),
     /// The user answered the AI's proposed change: OK (true) opens it in an editor.
     AiChangeAnswer(bool),
+    /// Attaches an image file to the next chat message.
+    AiAttachFile(std::path::PathBuf),
+    /// Attaches a pasted picture to the next chat message.
+    AiAttachPixels(std::sync::Arc<eframe::egui::ColorImage>),
+    AiRemoveAttachment(usize),
+    /// Opens a file picker for images to attach.
+    AiPickImages,
     ShowAiSettings,
     SaveAiSettings(AiConfig),
     TestAi(AiConfig),

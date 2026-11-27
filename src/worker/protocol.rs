@@ -31,6 +31,8 @@ pub enum Req {
     Ddl { db: String, table: String, is_view: bool },
     /// A view's definition, to open in an editor (Design View).
     ViewSource { db: String, view: String },
+    /// A function's or procedure's definition, to open in a query tab.
+    RoutineSource { db: String, routine: RoutineInfo },
     /// `schema` is where unqualified names resolve first; empty = the server's default.
     /// `explain` asks for the plans of the statements instead of running them.
     Query { tab: u64, db: String, schema: String, sql: String, explain: bool },
@@ -92,6 +94,7 @@ pub enum Resp {
     RefColumns { db: String, schema: String, table: String, result: Result<Vec<String>, DbError> },
     Ddl { db: String, table: String, result: Result<String, DbError> },
     ViewSource { db: String, view: String, result: Result<String, DbError> },
+    RoutineSource { db: String, name: String, result: Result<String, DbError> },
     Query { tab: u64, results: Vec<ResultSet>, error: Option<(String, DbError)>, elapsed: Duration },
     TableData { tab: u64, result: Result<TablePage, DbError>, sql: String, elapsed: Duration },
     Exec { tab: u64, db: String, result: Result<u64, DbError>, purpose: Purpose },

@@ -5,7 +5,7 @@ use super::dialect::{create_table_head, default_expr, CapRows, Dialect, Explain,
 use super::mssql_alter as alter;
 use super::mssql_parts as parts;
 use super::parts::{ConstraintKind, DesignerCaps};
-use crate::domain::{FieldDef, IndexDef, TableOptions, TriggerDef};
+use crate::domain::{FieldDef, IndexDef, RoutineInfo, TableOptions, TriggerDef};
 
 pub struct MssqlDialect;
 
@@ -189,6 +189,21 @@ impl Dialect for MssqlDialect {
 
     fn sample_query(&self, table: &str) -> String {
         format!("SELECT TOP 100 *\nFROM {}\n", table)
+    }
+
+    /// Scalar functions must be called with their schema; table functions are read FROM.
+    fn routine_call(&self, r: &RoutineInfo) -> String {
+        let name = self.quote_ident(&format!("{}.{}", r.schema, r.bare_name()));
+        if r.is_procedure() {
+            format!("EXEC {};
+", name)
+        } else if r.returns.eq_ignore_ascii_case("TABLE") {
+            format!("SELECT * FROM {}();
+", name)
+        } else {
+            format!("SELECT {}();
+", name)
+        }
     }
 
     /// SHOWPLAN must be alone in its batch; while it is on, nothing else runs.

@@ -49,6 +49,10 @@ pub(super) fn handle(d: &mut dyn Driver, cfg: &ConnConfig, req: Req) -> Resp {
             let result = d.ddl(&db, &view, true);
             Resp::ViewSource { db, view, result }
         }
+        Req::RoutineSource { db, routine } => {
+            let result = d.routine_ddl(&db, &routine);
+            Resp::RoutineSource { db, name: routine.name, result }
+        }
         Req::Query { tab, db, schema, sql, explain } => run_script(d, tab, (&db, &schema), (&sql, explain)),
         Req::TableData { tab, db, page } => table_page(d, tab, &db, &page),
         Req::Exec { tab, db, stmts, purpose } => {

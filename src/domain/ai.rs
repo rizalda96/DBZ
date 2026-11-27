@@ -59,10 +59,29 @@ pub enum Role {
     ToolResult,
 }
 
+/// An image attached to a user message.
+#[derive(Clone, Debug, PartialEq)]
+pub struct AiImage {
+    /// As the chat shows it, e.g. "pasted-1.png".
+    pub name: String,
+    /// `image/png`, `image/jpeg`, `image/gif` or `image/webp`.
+    pub media_type: String,
+    pub data: Vec<u8>,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ChatMsg {
     pub role: Role,
     pub text: String,
+    /// Only on user messages.
+    pub images: Vec<AiImage>,
+}
+
+impl ChatMsg {
+    /// A message without images.
+    pub fn new(role: Role, text: impl Into<String>) -> Self {
+        ChatMsg { role, text: text.into(), images: vec![] }
+    }
 }
 
 /// Tools that read the database on the AI's own connection.

@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use crate::domain::ResultSet;
+use crate::domain::{sort_rows, ResultSet};
 
 const HINT: &str = "Write SQL above and press Run (Ctrl+R). Select part of the text to run just that part.";
 
@@ -23,6 +23,8 @@ pub struct QueryTab {
     /// 0 = Message tab, i = results[i - 1].
     pub view: usize,
     pub sel_cell: Option<(usize, usize)>,
+    /// (result tab, column, descending) the rows were last sorted by; None after a run.
+    pub sort: Option<(usize, usize, bool)>,
     pub dirty: bool,
     /// Editor selection as char indices.
     pub selection: Option<(usize, usize)>,
@@ -44,6 +46,7 @@ impl QueryTab {
             elapsed: None,
             view: 0,
             sel_cell: None,
+            sort: None,
             dirty: false,
             selection: None,
         }
@@ -81,8 +84,44 @@ impl QueryTab {
         msg
     }
 
+    /// Sorts the shown result tab by column `col`: ascending first, then each click flips it.
+    pub fn sort_by(&mut self, col: usize) {
+        let desc = matches!(self.sort, Some((v, c, d)) if v == self.view && c == col && !d);
+        let Some(set) = self.view.checked_sub(1).and_then(|i| self.results.get_mut(i)) else { return };
+        sort_rows(&mut set.rows, col, desc);
+        self.sort = Some((self.view, col, desc));
+        self.sel_cell = None;
+    }
+
+    /// (column, descending) of the shown result tab, when it was sorted.
+    pub fn sorted(&self) -> Option<(usize, bool)> {
+        self.sort.filter(|(v, _, _)| *v == self.view).map(|(_, c, d)| (c, d))
+    }
+
     /// Rows in the result tab being shown (0 on the Message tab).
     pub fn shown_rows(&self) -> usize {
         self.view.checked_sub(1).and_then(|i| self.results.get(i)).map(|r| r.rows.len()).unwrap_or(0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::QueryTab;
+    use crate::domain::ResultSet;
+
+    #[test]
+    fn sort_toggles_and_follows_the_result_tab() {
+        let mut t = QueryTab::new(1, 1, "db".into(), String::new());
+        let rows = ["2", "10", "1"].iter().map(|v| vec![Some(v.to_string())]).collect();
+        t.results = vec![ResultSet { columns: vec!["n".into()], rows, has_rows: true, ..Default::default() }];
+        t.view = 1;
+        t.sort_by(0);
+        assert_eq!(t.sorted(), Some((0, false)));
+        assert_eq!(t.results[0].rows[0][0].as_deref(), Some("1"));
+        t.sort_by(0);
+        assert_eq!(t.sorted(), Some((0, true)));
+        assert_eq!(t.results[0].rows[0][0].as_deref(), Some("10"));
+        t.view = 0;
+        assert_eq!(t.sorted(), None);
     }
 }

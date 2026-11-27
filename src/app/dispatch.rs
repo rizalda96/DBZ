@@ -1,6 +1,7 @@
 //! Routes each `Act` to its handler. One line per action keeps this a table of
 //! contents; the work lives in the `*_actions` modules.
 
+use super::ai_images::image_from_file;
 use super::{Act, Dbz, Dialog};
 use crate::transfer::ConnSource;
 
@@ -43,6 +44,12 @@ impl Dbz {
             Act::Truncate(obj) => self.ask_truncate(obj),
             Act::Rename(obj) => self.dialogs.dialog = Some(Dialog::Rename { cid: obj.cid, db: obj.db, new: obj.name.clone(), table: obj.name }),
             Act::DropRoutine(obj, kind) => self.ask_drop_routine(obj, kind),
+            Act::DesignRoutine(obj) => self.design_routine(obj),
+            Act::ExecRoutine(obj) => self.exec_routine(obj),
+            Act::NewRoutine(cid, db) => {
+                let sql = self.ws.dialect_of(cid).templates().new_function.to_string();
+                self.new_query(cid, db, sql)
+            }
             Act::NewQuery(cid, db, sql) => self.new_query(cid, db, sql),
             Act::QueryTable(obj) => {
                 let sql = self.ws.dialect_of(obj.cid).sample_query(&obj.name);
@@ -78,6 +85,14 @@ impl Dbz {
             Act::AiStop => self.ai_stop(),
             Act::AiOpenSql(sql) => self.ai_open_sql(sql),
             Act::AiChangeAnswer(ok) => self.ai_change_answer(ok),
+            Act::AiAttachFile(path) => self.ai_attach(image_from_file(&path)),
+            Act::AiAttachPixels(img) => self.ai_attach_pixels(&img),
+            Act::AiPickImages => self.ai_pick_images(),
+            Act::AiRemoveAttachment(i) => {
+                if i < self.ai.attachments.len() {
+                    self.ai.attachments.remove(i);
+                }
+            }
             Act::ShowAiSettings => self.show_ai_settings(),
             Act::SaveAiSettings(cfg) => self.save_ai_settings(cfg),
             Act::TestAi(cfg) => self.test_ai(cfg),

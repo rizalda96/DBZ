@@ -92,6 +92,14 @@ impl Driver for MySqlDriver {
         Ok(rows.first().and_then(|r| r.get(1).cloned().flatten()).map(|d| format!("{};", d)).unwrap_or_default())
     }
 
+    fn routine_ddl(&mut self, db: &str, routine: &RoutineInfo) -> Result<String, DbError> {
+        let sql = format!("SHOW CREATE {} {}", routine_keyword(routine), DIALECT.quote_ident(&routine.name));
+        let rows = self.rows(db, &sql)?;
+        // Columns: name, sql_mode, the CREATE statement, …
+        let def = rows.first().and_then(|r| r.get(2).cloned().flatten());
+        def.map(|d| format!("{};", d)).ok_or_else(|| DbError::Query(format!("No definition found for {}", routine.name)))
+    }
+
     fn table_parts(&mut self, db: &str, table: &str) -> Result<TableParts, DbError> {
         let lits = (DIALECT.str_literal(db), DIALECT.str_literal(table));
         mysql_parts::table_parts(self, db, (&lits.0, &lits.1))
@@ -162,5 +170,14 @@ fn cell(v: mysql::Value) -> Cell {
         Date(y, m, d, 0, 0, 0, 0) => Some(format!("{:04}-{:02}-{:02}", y, m, d)),
         Date(y, m, d, h, mi, s, _) => Some(format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02}", y, m, d, h, mi, s)),
         Time(neg, d, h, m, s, _) => Some(format!("{}{:02}:{:02}:{:02}", if neg { "-" } else { "" }, d * 24 + h as u32, m, s)),
+    }
+}
+
+/// FUNCTION or PROCEDURE, as `SHOW CREATE` wants it.
+fn routine_keyword(r: &RoutineInfo) -> &'static str {
+    if r.is_procedure() {
+        "PROCEDURE"
+    } else {
+        "FUNCTION"
     }
 }

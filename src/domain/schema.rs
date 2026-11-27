@@ -66,6 +66,17 @@ pub struct RoutineInfo {
     pub returns: String,
 }
 
+impl RoutineInfo {
+    pub fn is_procedure(&self) -> bool {
+        self.kind.eq_ignore_ascii_case("PROCEDURE")
+    }
+
+    /// The name without its "schema." prefix.
+    pub fn bare_name(&self) -> &str {
+        self.name.strip_prefix(self.schema.as_str()).and_then(|n| n.strip_prefix('.')).unwrap_or(&self.name)
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct FieldDef {
     pub name: String,

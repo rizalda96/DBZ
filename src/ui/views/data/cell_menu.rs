@@ -1,6 +1,6 @@
 //! Right-click menu of a data grid cell.
 
-use eframe::egui::Ui;
+use eframe::egui::{self, Ui};
 
 use super::{reload, DataTab};
 use crate::app::Act;
@@ -15,6 +15,7 @@ pub(super) enum CellCmd {
     Filter,
     AddRow,
     DeleteRow,
+    Refresh,
 }
 
 const EDIT_ITEMS: [(&str, CellCmd); 3] = [("Edit Cell", CellCmd::Edit), ("Set to NULL", CellCmd::SetNull), ("Set to Empty String", CellCmd::SetEmpty)];
@@ -32,6 +33,11 @@ pub(super) fn show(ui: &mut Ui, editable: bool) -> Option<CellCmd> {
     if editable {
         ui.separator();
         chosen = chosen.or(items(ui, &ROW_ITEMS));
+    }
+    ui.separator();
+    if ui.add(egui::Button::new("Refresh").shortcut_text("F5")).clicked() {
+        chosen = Some(CellCmd::Refresh);
+        ui.close();
     }
     chosen
 }
@@ -60,5 +66,6 @@ pub(super) fn apply(ui: &Ui, t: &mut DataTab, (r, c): (usize, usize), cmd: CellC
         }
         CellCmd::AddRow => t.add_row(),
         CellCmd::DeleteRow => t.delete_row(r, false),
+        CellCmd::Refresh => reload(t, acts),
     }
 }

@@ -4,6 +4,7 @@
 
 mod actions;
 mod ai_actions;
+mod ai_images;
 mod ai_state;
 mod confirm;
 mod conn_actions;
@@ -17,6 +18,7 @@ mod matview_actions;
 mod view_actions;
 mod persistence;
 mod replies;
+mod routine_actions;
 mod screenshot;
 mod state;
 mod tab_actions;

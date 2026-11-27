@@ -1,11 +1,11 @@
 use std::path::Path;
 
 use super::backend::AiError;
-use super::claude_cli::{args, parse_output, program, transcript};
+use super::claude_cli::{args, parse_output, parse_stream_output, program, stream_input, transcript};
 use super::openai::{parse_response, request_body};
 use super::prompt::{system_prompt, PromptContext};
 use super::protocol::{format_sets, parse_reply, segments, Parsed, MAX_TOTAL};
-use crate::domain::{AiConfig, AiTool, ChatMsg, DbKind, DbRead, ResultSet, Role, Row, Segment};
+use crate::domain::{AiConfig, AiImage, AiTool, ChatMsg, DbKind, DbRead, ResultSet, Role, Row, Segment};
 
 #[test]
 fn plain_reply_is_an_answer() {
@@ -73,7 +73,7 @@ fn old_settings_without_ai_fields_load_defaults() {
 
 #[test]
 fn openai_body_maps_roles() {
-    let msgs = [ChatMsg { role: Role::User, text: "hi".into() }, ChatMsg { role: Role::Assistant, text: "a".into() }, ChatMsg { role: Role::ToolResult, text: "rows".into() }];
+    let msgs = [ChatMsg::new(Role::User, "hi"), ChatMsg::new(Role::Assistant, "a"), ChatMsg::new(Role::ToolResult, "rows")];
     let v = request_body("SYS", &msgs, "gpt-x");
     assert_eq!(v["model"], "gpt-x");
     assert_eq!(v["messages"][0]["role"], "system");
@@ -90,17 +90,17 @@ fn openai_response_and_error() {
 
 #[test]
 fn transcript_keeps_fences_and_unicode() {
-    let t = transcript(&[ChatMsg { role: Role::User, text: "kenapa lambat? ```sql\nSELECT 'é'\n```".into() }]);
+    let t = transcript(&[ChatMsg::new(Role::User, "kenapa lambat? ```sql\nSELECT 'é'\n```")]);
     assert!(t.contains("```sql\nSELECT 'é'\n```"));
     assert!(t.trim_end().ends_with("Reply as the assistant to the last message."));
 }
 
 #[test]
 fn cli_args_disable_tools_and_pass_model() {
-    let a = args("sonnet", Path::new("C:/x/system.txt"));
+    let a = args("sonnet", Path::new("C:/x/system.txt"), false);
     assert!(a.contains(&"-p".to_string()) && a.contains(&"--model".to_string()) && a.contains(&"sonnet".to_string()));
     assert!(a.windows(2).any(|w| w[0] == "--tools" && w[1].is_empty()));
-    assert!(!args("", Path::new("s")).contains(&"--model".to_string()));
+    assert!(!args("", Path::new("s"), false).contains(&"--model".to_string()));
 }
 
 #[test]
@@ -119,4 +119,40 @@ fn a_cli_folder_means_the_claude_inside_it() {
     let found = program(dir.to_str().expect("utf-8 path"));
     std::fs::remove_dir_all(&dir).expect("clean up");
     assert_eq!(found, file);
+}
+
+fn with_image(text: &str) -> ChatMsg {
+    let image = AiImage { name: "shot.png".into(), media_type: "image/png".into(), data: vec![1, 2, 3] };
+    ChatMsg { role: Role::User, text: text.into(), images: vec![image] }
+}
+
+#[test]
+fn only_the_latest_user_message_sends_its_images() {
+    let msgs = [with_image("lama"), ChatMsg::new(Role::Assistant, "ok"), with_image("baru")];
+    let v = request_body("SYS", &msgs, "m");
+    assert!(v["messages"][1]["content"].is_string());
+    assert!(v["messages"][1]["content"].as_str().is_some_and(|t| t.contains("not shown again")));
+    assert_eq!(v["messages"][3]["content"][1]["image_url"]["url"], "data:image/png;base64,AQID");
+}
+
+#[test]
+fn cli_streams_images_as_json_lines() {
+    let a = args("", Path::new("s"), true);
+    assert!(a.windows(2).any(|w| w[0] == "--input-format" && w[1] == "stream-json"));
+    assert!(a.contains(&"--verbose".to_string()));
+    let msgs = [with_image("lihat")];
+    let line: serde_json::Value = serde_json::from_str(stream_input(&transcript(&msgs), &msgs[0].images).trim()).expect("one JSON line");
+    assert_eq!(line["type"], "user");
+    assert_eq!(line["message"]["content"][1]["source"]["data"], "AQID");
+    assert!(line["message"]["content"][0]["text"].as_str().is_some_and(|t| t.contains("shot.png")));
+}
+
+#[test]
+fn cli_stream_output_reads_the_result_line() {
+    let out = "{\"type\":\"system\"}
+{\"type\":\"assistant\"}
+{\"type\":\"result\",\"subtype\":\"success\",\"result\":\"hai\"}
+";
+    assert_eq!(parse_stream_output(out).ok().as_deref(), Some("hai"));
+    assert!(parse_stream_output("{\"type\":\"result\",\"subtype\":\"error_during_execution\",\"result\":\"\"}").is_err());
 }

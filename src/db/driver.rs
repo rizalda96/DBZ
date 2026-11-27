@@ -24,6 +24,9 @@ pub trait Driver: Send {
 
     fn columns(&mut self, db: &str, table: &str) -> Result<Vec<FieldDef>, DbError>;
     fn ddl(&mut self, db: &str, table: &str, is_view: bool) -> Result<String, DbError>;
+    /// The CREATE statement of a function or procedure, as the server keeps it. On
+    /// PostgreSQL every overload of the name is included.
+    fn routine_ddl(&mut self, db: &str, routine: &RoutineInfo) -> Result<String, DbError>;
     /// Indexes, constraints, triggers and options of `table`, for the designer.
     fn table_parts(&mut self, db: &str, table: &str) -> Result<TableParts, DbError>;
 

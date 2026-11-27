@@ -4,10 +4,14 @@
 use std::time::Instant;
 
 use crate::ai::{parse_reply, segments, AiError, Parsed};
-use crate::domain::{AiTool, ChatMsg, DbKind, Role, Segment};
+use crate::domain::{AiImage, AiTool, ChatMsg, DbKind, Role, Segment};
 
 /// Tool calls the AI may make while answering one message.
 pub(super) const MAX_ROUNDS: u32 = 12;
+/// Images one message may carry.
+pub(super) const MAX_IMAGES: usize = 4;
+/// Bytes of all images of one message; the CLI caps its whole input at 10 MB.
+const MAX_IMAGES_BYTES: usize = 6_000_000;
 const THINKING: &str = "Thinking…";
 
 /// The connection and database a conversation works on; fixed by its first message.
@@ -23,7 +27,8 @@ pub struct AiTarget {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ChatItem {
-    User(String),
+    /// The text and the names of the images sent with it.
+    User { text: String, images: Vec<String> },
     Assistant(Vec<Segment>),
     /// A tool the AI used: what it did, and what came back (cut) or why it failed.
     Tool { label: String, detail: String, ok: bool },
@@ -54,6 +59,8 @@ pub struct AiChat {
     pub open: bool,
     /// What the user is typing.
     pub input: String,
+    /// Images waiting to go with the next message.
+    pub attachments: Vec<AiImage>,
     pub target: Option<AiTarget>,
     pub items: Vec<ChatItem>,
     pub busy: Option<AiBusy>,
@@ -67,8 +74,9 @@ impl AiChat {
     pub(super) fn begin_turn(&mut self, text: String) -> u64 {
         self.turn += 1;
         self.rounds = 0;
-        self.items.push(ChatItem::User(text.clone()));
-        self.history.push(ChatMsg { role: Role::User, text });
+        let images = std::mem::take(&mut self.attachments);
+        self.items.push(ChatItem::User { text: text.clone(), images: images.iter().map(|i| i.name.clone()).collect() });
+        self.history.push(ChatMsg { role: Role::User, text, images });
         self.set_busy(THINKING);
         self.turn
     }
@@ -85,7 +93,7 @@ impl AiChat {
                 return Step::Done;
             }
         };
-        self.history.push(ChatMsg { role: Role::Assistant, text: reply.clone() });
+        self.history.push(ChatMsg::new(Role::Assistant, reply.clone()));
         match parse_reply(&reply) {
             Parsed::Answer(text) => {
                 self.say(&text);
@@ -111,7 +119,7 @@ impl AiChat {
         if !self.count_round() {
             return Step::LimitReached;
         }
-        self.history.push(ChatMsg { role: Role::ToolResult, text: format!("invalid tool call: {}", error) });
+        self.history.push(ChatMsg::new(Role::ToolResult, format!("invalid tool call: {}", error)));
         self.items.push(ChatItem::Tool { label: "Invalid tool call".into(), detail: error, ok: false });
         self.set_busy(THINKING);
         Step::Retry
@@ -134,8 +142,21 @@ impl AiChat {
             Err(e) => (false, format!("ERROR: {}", e)),
         };
         self.items.push(ChatItem::Tool { label, detail: text.clone(), ok });
-        self.history.push(ChatMsg { role: Role::ToolResult, text });
+        self.history.push(ChatMsg::new(Role::ToolResult, text));
         self.set_busy(THINKING);
+    }
+
+    /// Adds an image to the next message; refused past [`MAX_IMAGES`].
+    pub(super) fn attach(&mut self, image: AiImage) -> Result<(), String> {
+        if self.attachments.len() >= MAX_IMAGES {
+            return Err(format!("At most {} images per message", MAX_IMAGES));
+        }
+        let total: usize = self.attachments.iter().map(|i| i.data.len()).sum::<usize>() + image.data.len();
+        if total > MAX_IMAGES_BYTES {
+            return Err("These images are too big together for one message; send some in the next one".into());
+        }
+        self.attachments.push(image);
+        Ok(())
     }
 
     /// Ends the running turn; a reply that still arrives for it is dropped.
@@ -153,6 +174,7 @@ impl AiChat {
         self.target = None;
         self.items.clear();
         self.history.clear();
+        self.attachments.clear();
     }
 
     pub(super) fn fail(&mut self, msg: String) {
